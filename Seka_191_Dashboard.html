@@ -1,0 +1,2672 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seka Police Station: 191 Operation Dashboard</title>
+    
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/th.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+/* === v51: Gap between last table row and signature (2 lines) without affecting new-page position === */
+@media print {
+  .signature-gap{ height: 2em !important; }
+}
+/* === v49: Restore original signature positions, keep 4-line spacing between blocks === */
+@media print {
+  .signature-section .sig-col + .sig-col{
+    margin-top: 4em !important; /* ~4 บรรทัด */
+  }
+/* รีเซ็ต margin-left ที่เป็น inline แล้วจัดตำแหน่งด้วย translateX ตามที่กำหนด */
+  .signature-section .sig-col{
+    margin-left: 0 !important;
+  }
+
+  /* บล็อกที่ 1: กึ่งกลางค่อนไปทางซ้าย 288px */
+  .signature-section .sig-col:nth-of-type(1){
+    transform: translateX(-288px) !important;
+  }
+
+  /* บล็อกที่ 2: เพิ่มระยะห่างจากบล็อกแรกอีก 2 บรรทัด และกึ่งกลางค่อนไปทางขวา 72px */
+  .signature-section .sig-col:nth-of-type(2){
+    margin-top: 4em !important;   /* 2 บรรทัดเดิม + เพิ่มอีก 2 บรรทัด = รวม ~4 บรรทัด */
+    transform: translateX(72px) !important;
+  }
+}
+/* === v47: Keep 2-line spacing between the two signature blocks === */
+@media print {
+  /* ระยะห่างระหว่างบล็อกลายเซ็นซ้าย-ขวา (กรณีถูกจัดเรียงเป็นบล็อกต่อกัน) */
+  .signature-section .sig-col + .sig-col{
+    margin-top: 2em !important; /* ~2 บรรทัด */
+  }
+}
+/* === v45: Signature block spacing (2 lines from table) === */
+@media print {
+  .signature-section {
+    margin-top: 2em !important; /* ~2 lines */
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .signature-section .sig-col {
+    margin-top: 0 !important;
+  }
+}
+/* === v44: Print layout - landscape + equal margins === */
+@media print {
+  html, body { width: 100%; height: auto; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .print-container, #printArea, .print-area { width: 100% !important; max-width: 100% !important; }
+  table { width: 100% !important; }
+  .print-container, #printArea, .print-area { margin: 0 !important; padding: 0 !important; }
+}
+/* === v43: Mobile sidebar toggle support === */
+.mobile-menu-btn{position:relative; z-index:60; pointer-events:auto;}
+@media (max-width: 767px){
+  aside.sidebar-gradient{ 
+    position: fixed !important;
+    top: 0; left: 0;
+    height: 100vh;
+    max-height: 100vh;
+    width: 16rem; /* w-64 */
+    z-index: 60;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  }
+}
+/* === Responsive & Touch Enhancements (v42) === */
+button, .btn, .date-btn, a[role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+@media (max-width: 640px) {
+  .p-4 { padding: 0.85rem; }
+  .date-btn { padding: 0.5rem 0.75rem !important; min-height: 40px; }
+  select, input, button { min-height: 40px; }
+  .chart-container { min-height: 260px; }
+}
+@media (max-width: 420px) {
+  .chart-container { min-height: 240px; }
+}
+.chart-container canvas { width: 100% !important; height: 100% !important; display: block; }
+.chart-container { position: relative; overflow: hidden; }
+/* --- v37: Hide bottom legend list for 'พื้นที่เกิดเหตุ (รายตำบล)' pie chart --- */
+#locationChartLegend, .locationChartLegend, .legend-locationChart, .chartjs-legend-locationChart { display: none !important; }
+#locationChart ~ .chart-legend, #locationChart ~ .legend, #locationChart + .chart-legend, #locationChart + .legend { display: none !important; }
+body { font-family: 'Sarabun', sans-serif; background-color: #f1f5f9; color: #1e293b; }
+.card-shadow { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+.sidebar-gradient { background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); }
+.chart-container { position: relative; height: 300px; width: 100%; }
+        
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Animation & Active States */
+@keyframes highlight { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+.filter-active { animation: highlight 0.3s ease-in-out; border: 2px solid #4f46e5; }
+        
+/* Date Filter Buttons */
+.date-btn { transition: all 0.2s; }
+.date-btn.active { background-color: #4f46e5; color: white; box-shadow: 0 2px 4px rgba(79, 70, 229, 0.3); transform: translateY(-1px); }
+.date-btn.inactive { background-color: #ffffff; color: #6b7280; border: 1px solid #e5e7eb; }
+.date-btn.inactive:hover { background-color: #f9fafb; border-color: #d1d5db; color: #374151; }
+
+/* Nav Items */
+.nav-item.active { background-color: #dc2626; color: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+.nav-item.inactive { color: #9ca3af; }
+.nav-item.inactive:hover { background-color: #1f2937; color: white; }
+
+/* Overlays & Modals */
+.modal-overlay { backdrop-filter: blur(4px); background-color: rgba(0,0,0,0.5); }
+        
+/* Pulse */
+@keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); } 70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
+.status-pulse { animation: pulse-green 2s infinite; }
+
+/* --- PRINT STYLES --- */
+@media print {
+    @page { size: A4 landscape; margin: 0.35in; }
+    body { 
+        background-color: #ffffff !important; 
+        -webkit-print-color-adjust: exact; 
+        print-color-adjust: exact; 
+        margin: 0 !important;
+        padding-top: 0 !important; padding-left: 0 !important; padding-right: 0 !important; padding-bottom: 0 !important;
+    }
+    #app-container, .modal-overlay, #loadingOverlay { display: none !important; }
+    #print-area { display: block !important; width: 100% !important; position: relative !important; }
+    table { page-break-inside: auto; border-collapse: collapse; }
+    tr { page-break-inside: avoid; page-break-after: auto; }
+    thead { display: table-header-group !important; }
+    tfoot { display: table-footer-group !important; }
+    .print-break-avoid { break-inside: avoid; page-break-inside: avoid; }
+    .logbook-table th, .logbook-table td { border: 1px solid #000 !important; padding: 4px; }
+    .logbook-table th { font-weight: bold; background-color: #f9fafb !important; }
+    .no-print-border, .no-print-border th, .no-print-border td { border: none !important; background-color: transparent !important; }
+    .logbook-table thead th { text-align: center !important; vertical-align: middle !important; }
+    .logbook-table td:nth-child(7) { white-space: normal !important; word-break: break-word !important; overflow-wrap: anywhere !important; font-size: 10px !important; line-height: 1.2 !important; }
+    .logbook-table th:nth-child(2), .logbook-table td:nth-child(2),
+    .logbook-table th:nth-child(4), .logbook-table td:nth-child(4),
+    .logbook-table th:nth-child(5), .logbook-table td:nth-child(5),
+    .logbook-table th:nth-child(10), .logbook-table td:nth-child(10) {
+        width: 4% !important; white-space: nowrap !important; text-align: center !important;
+    }
+    .logbook-table { width: 100% !important; max-width: 100% !important; table-layout: fixed !important; }
+    .logbook-table th, .logbook-table td { box-sizing: border-box !important; }
+    .logbook-table thead th {
+        white-space: normal !important; word-break: break-word !important; overflow-wrap: anywhere !important;
+        line-height: 1.15 !important; font-size: 9px !important; padding: 2px 3px !important;
+        text-align: center !important; vertical-align: middle !important;
+    }
+    .logbook-table tbody td { line-height: 1.25 !important; font-size: 10px !important; padding: 3px !important; }
+    .logbook-table th:nth-child(12), .logbook-table td:nth-child(12) {
+        white-space: normal !important; word-break: break-word !important; overflow-wrap: anywhere !important;
+    }
+    html, body { margin: 0 !important; padding: 0 !important; }
+    .logbook-table thead th:nth-child(6) {
+        white-space: normal !important; word-break: break-word !important; overflow-wrap: anywhere !important;
+        font-size: 8px !important; line-height: 1.05 !important; vertical-align: top !important;
+        padding-top: 2px !important; padding-bottom: 2px !important;
+    }
+    .logbook-table thead th { vertical-align: top !important; overflow: hidden !important; }
+    .logbook-table thead th .th-rt, .logbook-table thead th .th-patrol {
+        display: block !important; white-space: normal !important; word-break: break-word !important;
+        overflow-wrap: anywhere !important; line-height: 1.05 !important; font-size: 7.5px !important;
+        padding: 0 !important; margin: 0 !important; text-align: center !important;
+    }
+    .logbook-table thead th:has(.th-rt), .logbook-table thead th:has(.th-patrol) {
+        vertical-align: top !important; padding-top: 2px !important; padding-bottom: 2px !important;
+    }
+    .logbook-table thead tr:last-child th { vertical-align: top !important; }
+    .signature-new-page {
+        page-break-before: always !important; break-before: page !important;
+        padding-top: 2.6em !important; margin-top: 0 !important; display: block !important;
+    }
+}
+    </style>
+    <style id="dynamic-print-style"></style>
+</head>
+<body class="bg-gray-100">
+    <!-- Mobile Sidebar Overlay -->
+    <div id="mobileMenuOverlay" class="fixed inset-0 bg-black/30 hidden" style="z-index: 55;"></div>
+
+    <!-- APP CONTAINER -->
+    <div id="app-container" class="flex h-screen overflow-hidden">
+        
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="fixed inset-0 bg-black/30 z-[100] hidden flex items-center justify-center modal-overlay">
+            <div class="bg-white p-6 rounded-xl shadow-2xl flex flex-col items-center max-w-sm text-center">
+                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mb-4"></div>
+                <p class="text-gray-700 font-medium" id="loadingText">กำลังเชื่อมต่อฐานข้อมูล...</p>
+                <p class="text-xs text-gray-400 mt-2" id="loadingSubText"></p>
+            </div>
+        </div>
+
+        <!-- Detail Modals... (191 Main & Psych Detail) -->
+        <div id="detailModal" class="fixed inset-0 z-50 hidden flex items-center justify-center modal-overlay p-4">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col animate-[highlight_0.3s_ease-out]">
+                <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl">
+                    <h3 class="font-bold text-gray-800 text-lg"><i class="fa-solid fa-file-alt mr-2 text-indigo-600"></i>รายละเอียดการแจ้งเหตุ</h3>
+                    <button onclick="closeDetailModal()" class="text-gray-400 hover:text-red-500 transition text-2xl"><i class="fa-solid fa-times"></i></button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-6 custom-scrollbar" id="detailContent"></div>
+                <div class="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 rounded-b-xl">
+                    <button id="btnPrint191" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition shadow-sm flex items-center gap-2">
+                        <i class="fa-solid fa-print"></i> พิมพ์รายงาน
+                    </button>
+                    <button onclick="closeDetailModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-medium transition">ปิดหน้าต่าง</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="psychDetailModal" class="fixed inset-0 z-50 hidden flex items-center justify-center modal-overlay p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-[highlight_0.3s_ease-out]">
+                <div id="psychModalHead" class="p-5 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-2xl transition-colors">
+                    <h3 id="psychModalTitle" class="font-bold text-gray-800 text-lg flex items-center gap-2 transition-colors">
+                        <i id="psychModalIcon" class="fa-solid fa-folder-open text-gray-600 transition-colors"></i> แฟ้มประวัติบุคคลเฝ้าระวัง
+                    </h3>
+                    <button id="psychModalClose" onclick="closePsychModal()" class="text-gray-400 hover:text-gray-600 transition text-2xl"><i class="fa-solid fa-times"></i></button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-6 custom-scrollbar bg-white" id="psychDetailContent"></div>
+                <div class="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 rounded-b-2xl">
+                    <button id="btnPrintPsych" class="px-4 py-2 bg-gray-800 hover:bg-black text-white rounded-lg text-sm font-medium transition shadow-sm flex items-center gap-2">
+                        <i class="fa-solid fa-print"></i> พิมพ์แฟ้มประวัติ
+                    </button>
+                    <button onclick="closePsychModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-medium transition">ปิดหน้าต่าง</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comparison Modal -->
+        <div id="compareModal" class="fixed inset-0 z-40 hidden flex items-center justify-center modal-overlay p-4">
+            <!-- Modal Content -->
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col animate-[highlight_0.3s_ease-out]">
+                <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl">
+                    <div>
+                        <h3 class="font-bold text-gray-800 text-xl"><i class="fa-solid fa-scale-balanced mr-2 text-indigo-600"></i>เปรียบเทียบข้อมูลรายตำบล (ขั้นสูง)</h3>
+                        <p class="text-sm text-gray-500 mt-1">เปรียบเทียบสถิติสองกลุ่มข้อมูล (สามารถเลือกตำบลเดียวกันแต่ต่างช่วงเวลาได้)</p>
+                    </div>
+                    <button onclick="closeComparison()" class="text-gray-400 hover:text-red-500 transition text-2xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><i class="fa-solid fa-times"></i></button>
+                </div>
+                <div class="p-4 bg-white border-b border-gray-100 grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-4 items-start">
+                    <div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 hover:border-indigo-200 transition">
+                        <div class="flex items-center gap-2 mb-2 text-indigo-700 font-bold"><i class="fa-solid fa-chart-bar"></i> กลุ่มข้อมูล A (สีน้ำเงิน)</div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">เลือกพื้นที่:</label>
+                        <select id="compSelect1" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500 mb-3" onchange="renderComparisonCharts()"></select>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">ช่วงเวลา (A):</label>
+                        <div class="flex items-center gap-2">
+                            <input type="date" id="compStartDate1" class="w-full border border-gray-300 rounded-lg p-1.5 text-xs text-gray-700 focus:ring-2 focus:ring-indigo-500" onchange="renderComparisonCharts()">
+                            <span class="text-gray-400">-</span>
+                            <input type="date" id="compEndDate1" class="w-full border border-gray-300 rounded-lg p-1.5 text-xs text-gray-700 focus:ring-2 focus:ring-indigo-500" onchange="renderComparisonCharts()">
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-center h-full pt-8"><span class="text-xs font-bold bg-gray-100 text-gray-500 px-3 py-1.5 rounded-full border border-gray-200 shadow-sm">VS</span></div>
+                    <div class="bg-pink-50/50 p-4 rounded-xl border border-pink-100 hover:border-pink-200 transition">
+                        <div class="flex items-center gap-2 mb-2 text-pink-700 font-bold"><i class="fa-solid fa-chart-bar"></i> กลุ่มข้อมูล B (สีชมพู)</div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">เลือกพื้นที่:</label>
+                        <select id="compSelect2" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-pink-500 mb-3" onchange="renderComparisonCharts()"></select>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">ช่วงเวลา (B):</label>
+                        <div class="flex items-center gap-2">
+                            <input type="date" id="compStartDate2" class="w-full border border-gray-300 rounded-lg p-1.5 text-xs text-gray-700 focus:ring-2 focus:ring-pink-500" onchange="renderComparisonCharts()">
+                            <span class="text-gray-400">-</span>
+                            <input type="date" id="compEndDate2" class="w-full border border-gray-300 rounded-lg p-1.5 text-xs text-gray-700 focus:ring-2 focus:ring-pink-500" onchange="renderComparisonCharts()">
+                        </div>
+                    </div>
+                </div>
+                <div class="px-4 py-2 bg-gray-50 flex justify-end border-b border-gray-100">
+                    <button onclick="clearCompFilters()" class="text-xs text-gray-500 hover:text-indigo-600 underline flex items-center gap-1"><i class="fa-solid fa-rotate-left"></i> รีเซ็ตตัวกรองทั้งหมด</button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-6 custom-scrollbar bg-white">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100"><h4 class="font-bold text-gray-700 mb-4 text-sm"><i class="fa-solid fa-chart-column mr-2 text-gray-400"></i>เปรียบเทียบประเภทเหตุ (5 อันดับแรก)</h4><div class="h-64 relative"><canvas id="compCountChart"></canvas></div></div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100"><h4 class="font-bold text-gray-700 mb-4 text-sm"><i class="fa-solid fa-stopwatch mr-2 text-gray-400"></i>เปรียบเทียบเวลาถึงที่เกิดเหตุ (นาที)</h4><div class="h-64 relative"><canvas id="compResponseChart"></canvas></div></div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 md:col-span-2"><h4 class="font-bold text-gray-700 mb-4 text-sm"><i class="fa-solid fa-clock mr-2 text-gray-400"></i>ช่วงเวลาที่เกิดเหตุ (เปรียบเทียบ 24 ชม.)</h4><div class="h-64 relative"><canvas id="compTimeChart"></canvas></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logbook Print Modal -->
+        <div id="logbookPrintModal" class="fixed inset-0 z-50 hidden flex items-center justify-center modal-overlay p-4">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-[highlight_0.3s_ease-out]">
+                <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-emerald-50 rounded-t-xl">
+                    <div>
+                        <h3 class="font-bold text-emerald-800 text-lg"><i class="fa-solid fa-book mr-2"></i>พิมพ์สมุดบันทึกรับแจ้งเหตุ (Logbook)</h3>
+                        <p class="text-xs text-emerald-600 mt-1">ตั้งค่าช่วงเวลาที่ต้องการพิมพ์ลงในแบบฟอร์ม</p>
+                    </div>
+                    <button onclick="closeLogbookPrintModal()" class="text-emerald-400 hover:text-emerald-600 transition text-2xl"><i class="fa-solid fa-times"></i></button>
+                </div>
+                <div class="p-4 bg-white border-b border-gray-100 flex flex-col sm:flex-row items-center gap-4">
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <label class="text-sm font-bold text-gray-700 whitespace-nowrap">เลือกวันที่:</label>
+                        <input type="date" id="logbookStartDate" class="border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-50 w-full" onchange="renderLogbookPreview()">
+                    </div>
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <label class="text-sm font-bold text-gray-700 whitespace-nowrap">ถึงวันที่:</label>
+                        <input type="date" id="logbookEndDate" class="border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 w-full" onchange="renderLogbookPreview()">
+                    </div>
+                </div>
+                <div class="flex-1 overflow-y-auto p-6 custom-scrollbar bg-gray-50">
+                    <h4 class="text-sm font-bold text-gray-600 mb-2"><i class="fa-solid fa-eye mr-1"></i> ตัวอย่างข้อมูลที่จะพิมพ์ (<span id="logbookPreviewCount">0</span> รายการ)</h4>
+                    <div class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-gray-100 text-gray-600 border-b border-gray-200">
+                                <tr>
+                                    <th class="p-3">วันที่</th><th class="p-3">เวลา</th><th class="p-3">ประเภทเหตุ</th><th class="p-3">สถานที่</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logbookPreviewBody" class="divide-y divide-gray-100 text-gray-700"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="p-4 border-t border-gray-100 bg-white flex justify-start gap-3 rounded-b-xl">
+                    <button onclick="printLogbookReport()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold transition shadow-md flex items-center gap-2">
+                        <i class="fa-solid fa-print"></i> พิมพ์รายงาน
+                    </button>
+                    <button onclick="closeLogbookPrintModal()" class="px-5 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg text-sm font-bold transition">ยกเลิก</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <aside class="w-64 sidebar-gradient text-white flex-shrink-0 hidden md:flex flex-col transition-all duration-300 relative">
+            <div class="p-6 border-b border-gray-700 flex items-center gap-3 cursor-pointer hover:bg-gray-800 transition-colors duration-200 group" onclick="window.location.reload()" title="คลิกเพื่อรีเฟรชหน้าจอ">
+                <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg overflow-hidden transform group-hover:scale-110 transition-transform duration-300 border-2 border-white/20">
+                     <img src="https://drive.google.com/thumbnail?id=1zkK-429sNvUZSTekHAv2Oh2nqBoDARly&sz=w240" alt="Seka Police Logo" class="w-full h-full object-cover p-0.5" referrerpolicy="no-referrer">
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg tracking-wide group-hover:text-gray-200 transition-colors">SEKA POLICE</h1>
+                    <p class="text-xs text-gray-400 group-hover:text-gray-300">191 Emergency System</p>
+                </div>
+            </div>
+            
+            <nav class="flex-1 py-6 space-y-2 px-4">
+                <a href="#" onclick="switchView('overview')" id="nav-overview" class="nav-item active flex items-center gap-3 px-4 py-3 rounded-lg transition-all group">
+                    <i class="fa-solid fa-chart-line w-5 text-center"></i> <span class="font-medium">ภาพรวม 191</span>
+                </a>
+                <a href="#" onclick="switchView('list')" id="nav-list" class="nav-item inactive flex items-center gap-3 px-4 py-3 rounded-lg transition-all group">
+                    <i class="fa-solid fa-table-list w-5 text-center"></i> <span class="font-medium">รายการแจ้งเหตุ</span>
+                </a>
+                <a href="#" onclick="switchView('psych')" id="nav-psych" class="nav-item inactive flex items-center gap-3 px-4 py-3 rounded-lg transition-all group border border-gray-700/50 bg-gray-800/50 mt-2">
+                    <i class="fa-solid fa-user-shield w-5 text-center text-red-400"></i> <span class="font-medium text-red-100">บุคคลเฝ้าระวัง</span>
+                </a>
+                <a href="#" class="nav-item inactive flex items-center gap-3 px-4 py-3 rounded-lg transition-all group mt-2">
+                    <i class="fa-solid fa-users w-5 text-center"></i> <span class="font-medium">เจ้าหน้าที่เวร</span>
+                </a>
+                <a href="#" class="nav-item inactive flex items-center gap-3 px-4 py-3 rounded-lg transition-all group">
+                    <i class="fa-solid fa-map-location-dot w-5 text-center"></i> <span class="font-medium">แผนที่จุดเกิดเหตุ</span>
+                </a>
+            </nav>
+
+            <div class="p-4 border-t border-gray-700">
+                <div class="bg-gray-800 rounded-lg p-3 mb-2 border border-gray-700" id="sourceStatusBox">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[10px] text-gray-400 uppercase tracking-wider">แหล่งข้อมูล</span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-gray-600 text-gray-300" id="sourceTypeBadge">Offline</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-2 h-2 bg-gray-500 rounded-full" id="statusDot"></div>
+                        <span class="text-xs font-medium truncate" id="lastUpdated">รอโหลดข้อมูล...</span>
+                    </div>
+                </div>
+                <div class="text-[10px] text-gray-500 text-center font-medium mt-2">
+                    Powered By <span class="text-indigo-400">V4TCH4R4</span> & <span class="text-blue-400">Gemini</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content (Dashboard) -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+            <header class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6 shadow-sm z-10">
+                <div class="flex items-center gap-4">
+                    <button id="mobileMenuBtn" class="md:hidden text-gray-500 hover:text-gray-700 mobile-menu-btn" type="button" aria-label="Open menu"><i class="fa-solid fa-bars text-xl"></i></button>
+                    <h2 class="text-xl font-bold text-gray-800" id="pageTitle">ภาพรวมสถานการณ์</h2>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div id="syncIndicator" class="hidden items-center gap-2 mr-2 text-xs text-green-600 font-medium bg-green-50 px-3 py-1.5 rounded-full border border-green-200">
+                        <div class="w-1.5 h-1.5 bg-green-500 rounded-full status-pulse"></div> Auto Sync
+                    </div>
+                    <div id="mainSyncControls" class="flex items-center gap-3">
+                        <button onclick="fetchGoogleSheet()" class="bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm">
+                            <i id="syncIcon" class="fa-solid fa-rotate"></i> <span class="hidden sm:inline">Sync Data</span>
+                        </button>
+                        <button onclick="configGoogleSheet()" class="text-gray-400 hover:text-indigo-600 px-2 py-2 rounded-lg transition-colors border border-transparent hover:border-gray-200" title="ตั้งค่าลิงก์"><i class="fa-solid fa-link"></i></button>
+                        <div class="h-6 w-px bg-gray-200 mx-2"></div>
+                        <label for="csvInput" class="cursor-pointer text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 hover:bg-gray-100"><i class="fa-solid fa-file-csv text-lg"></i></label>
+                        <input type="file" id="csvInput" accept=".csv" class="hidden">
+                    </div>
+                    <div id="psychSyncControls" class="hidden items-center gap-3">
+                         <button onclick="fetchPsychSheet()" class="bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm shadow-red-200">
+                            <i id="psychSyncIcon" class="fa-solid fa-sync"></i> <span class="hidden sm:inline">อัปเดตฐานข้อมูลผู้ป่วย</span>
+                        </button>
+                    </div>
+                    <div class="h-8 w-px bg-gray-200 mx-2"></div>
+                    <div class="flex items-center gap-3">
+                        <div class="text-right hidden sm:block">
+                            <p class="text-sm font-bold text-gray-800">จ.ส.ต.วชร เพชรรักษ์</p>
+                            <p class="text-xs text-gray-500">ผู้ดูแลระบบ</p>
+                        </div>
+                        <div class="w-10 h-10 bg-gray-200 rounded-full overflow-hidden border-2 border-white shadow-sm">
+                            <img src="https://drive.google.com/thumbnail?id=1QMHdxvyMFKBLBhS-29HQdNdY2ooQCNFM&sz=w200" alt="จ.ส.ต.วชร เพชรรักษ์" class="w-full h-full object-cover" referrerpolicy="no-referrer">
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- VIEW: OVERVIEW -->
+            <div id="view-overview" class="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-1 flex">
+                            <button id="btn-today" onclick="setDateFilter('today')" class="date-btn inactive px-3 py-1.5 rounded-md text-sm font-medium">วันนี้</button>
+                            <button id="btn-week" onclick="setDateFilter('week')" class="date-btn inactive px-3 py-1.5 rounded-md text-sm font-medium">สัปดาห์นี้</button>
+                            <button id="btn-month" onclick="setDateFilter('month')" class="date-btn inactive px-3 py-1.5 rounded-md text-sm font-medium">เดือนนี้</button>
+                            <button id="btn-all" onclick="setDateFilter('all')" class="date-btn active px-3 py-1.5 rounded-md text-sm font-medium">ทั้งหมด</button>
+                        </div>
+                        <select id="tambonFilter" class="bg-white border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 shadow-sm min-w-[140px]"><option value="all">ทุกตำบล</option></select>
+                        <button onclick="openComparison()" class="bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 px-3 py-2 rounded-lg text-sm font-medium transition shadow-sm flex items-center gap-2"><i class="fa-solid fa-scale-balanced"></i> เปรียบเทียบตำบล</button>
+                    </div>
+                    <div id="activeFilterBadge" class="hidden bg-indigo-100 text-indigo-800 text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-2 animate-pulse border border-indigo-200 shadow-sm"><i class="fa-solid fa-filter"></i> <span>ประเภทเหตุ: <b id="filterName">...</b></span><button onclick="clearIncidentFilter()" class="ml-2 hover:text-indigo-600"><i class="fa-solid fa-times-circle"></i></button></div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div class="bg-white rounded-xl p-5 card-shadow border-l-4 border-blue-500"><div class="flex justify-between items-start"><div><p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">เหตุแจ้งทั้งหมด</p><h3 class="text-3xl font-bold text-gray-800 mt-1" id="statTotal">0</h3><p class="text-xs text-green-500 mt-2 font-medium flex items-center"><i class="fa-solid fa-clock-rotate-left mr-1"></i> ตามช่วงเวลาที่เลือก</p></div><div class="p-3 bg-blue-50 rounded-lg text-blue-600"><i class="fa-solid fa-tower-broadcast text-xl"></i></div></div></div>
+                    <div class="bg-white rounded-xl p-5 card-shadow border-l-4 border-red-500"><div class="flex justify-between items-start"><div><p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">เหตุเร่งด่วน</p><h3 class="text-3xl font-bold text-gray-800 mt-1" id="statUrgent">0</h3><p class="text-xs text-gray-500 mt-2">ระดับ "ด่วน" และ "ด่วนที่สุด"</p></div><div class="p-3 bg-red-50 rounded-lg text-red-600"><i class="fa-solid fa-truck-medical text-xl"></i></div></div></div>
+                    <div class="bg-white rounded-xl p-5 card-shadow border-l-4 border-amber-500"><div class="flex justify-between items-start"><div><p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">ระยะเวลาถึงที่เกิดเหตุ (เฉลี่ย)</p><h3 class="text-3xl font-bold text-gray-800 mt-1" id="statResponseTime">0 <span class="text-sm text-gray-500 font-normal">นาที</span></h3><p class="text-xs text-amber-600 mt-2 font-medium">เป้าหมาย: < 15 นาที</p></div><div class="p-3 bg-amber-50 rounded-lg text-amber-600"><i class="fa-solid fa-stopwatch text-xl"></i></div></div></div>
+                    <div class="bg-white rounded-xl p-5 card-shadow border-l-4 border-indigo-500"><div class="flex justify-between items-start"><div><p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">จับกุม/ระงับเหตุได้</p><h3 class="text-3xl font-bold text-gray-800 mt-1" id="statSuccess">0%</h3><p class="text-xs text-green-500 mt-2 font-medium">อัตราความสำเร็จสูง</p></div><div class="p-3 bg-indigo-50 rounded-lg text-indigo-600"><i class="fa-solid fa-handcuffs text-xl"></i></div></div></div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <div class="bg-white p-5 rounded-xl card-shadow lg:col-span-2 relative"><div class="flex justify-between items-center mb-4"><div><h3 class="font-bold text-gray-800 text-lg"><i class="fa-solid fa-chart-column text-indigo-500 mr-2"></i>สถิติประเภทเหตุ (5 อันดับแรก)</h3><p class="text-xs text-gray-400 mt-1">💡 <span class="text-indigo-600 font-bold">เคล็ดลับ:</span> กดที่กราฟแท่งเพื่อดูเฉพาะข้อมูลของเหตุประเภทนั้น</p></div></div><div class="chart-container" style="height: 300px;"><canvas id="incidentTypeChart"></canvas></div></div>
+                    <div class="bg-white p-5 rounded-xl card-shadow"><div class="mb-4"><h3 class="font-bold text-gray-800 text-lg">พื้นที่เกิดเหตุ (รายตำบล)</h3></div><div class="chart-container" style="height: 320px;"><canvas id="locationChart"></canvas></div><div class="mt-4 text-center text-xs text-gray-400">แสดงข้อมูลตามตำบลที่มีการแจ้งเหตุมากที่สุด</div></div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                     <div class="bg-white p-5 rounded-xl card-shadow"><h3 class="font-bold text-gray-800 text-lg mb-4"><i class="fa-solid fa-clock text-amber-500 mr-2"></i>ช่วงเวลาที่เกิดเหตุ (24 ชม.)</h3><div class="chart-container" style="height: 250px;"><canvas id="timeChart"></canvas></div></div>
+                    <div class="bg-white p-5 rounded-xl card-shadow flex flex-col md:flex-row items-center gap-4"><div class="w-full md:w-1/2"><h3 class="font-bold text-gray-800 text-lg mb-2">ระดับความเร่งด่วน</h3><p class="text-sm text-gray-500 mb-4">สัดส่วนเหตุการณ์ตามระดับความเร่งด่วน</p><ul id="urgencyLegend" class="space-y-3 text-sm"></ul></div><div class="w-full md:w-1/2 h-64 relative"><canvas id="urgencyChart"></canvas></div></div>
+                </div>
+                
+                <div class="text-center text-gray-400 text-sm py-4"><i class="fa-solid fa-info-circle mr-1"></i> หากต้องการดูรายการแจ้งเหตุทั้งหมด กรุณาคลิกเมนู <b>"รายการแจ้งเหตุ"</b> ด้านซ้ายมือ</div>
+                <footer class="mt-8 text-center text-xs text-gray-400 pb-4">&copy; 2026 Seka Police Station. All rights reserved.</footer>
+            </div>
+
+            <!-- VIEW: INCIDENT LIST -->
+            <div id="view-list" class="flex-1 overflow-y-auto p-6 custom-scrollbar hidden">
+                <div class="bg-white rounded-xl card-shadow overflow-hidden min-h-[600px] flex flex-col">
+                    <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50">
+                        <div>
+                            <h3 class="font-bold text-gray-800 text-lg"><i class="fa-solid fa-list-ul mr-2 text-indigo-600"></i>รายการแจ้งเหตุทั้งหมด</h3>
+                            <p class="text-xs text-gray-500 mt-1">เรียงลำดับจากล่าสุดไปเก่าสุด</p>
+                        </div>
+                        
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <select id="listTambonFilter" class="bg-white border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 shadow-sm"><option value="all">ทุกตำบล</option></select>
+                            
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><i class="fa-solid fa-search"></i></span>
+                                <input type="text" id="tableSearch" placeholder="ค้นหา (ชื่อ, เบอร์, สายตรวจ)..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-64 transition-all shadow-sm">
+                            </div>
+
+                            <button onclick="openLogbookPrintModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2 whitespace-nowrap">
+                                <i class="fa-solid fa-print"></i> พิมพ์รายงาน
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-x-auto"><table class="w-full text-left border-collapse"><thead class="bg-indigo-900 text-white sticky top-0 z-10"><tr class="text-xs uppercase tracking-wider font-semibold"><th class="p-4 border-b border-indigo-800">วัน/เวลา</th><th class="p-4 border-b border-indigo-800">ประเภทเหตุ</th><th class="p-4 border-b border-indigo-800">ผู้แจ้ง/เบอร์โทร</th><th class="p-4 border-b border-indigo-800">สถานที่</th><th class="p-4 border-b border-indigo-800">สายตรวจ</th><th class="p-4 border-b border-indigo-800 text-center">ระดับ</th><th class="p-4 border-b border-indigo-800 text-center">จัดการ</th></tr></thead><tbody id="incidentTableBody" class="text-sm text-gray-700 divide-y divide-gray-100 bg-white"></tbody></table></div>
+                    <div class="p-4 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center bg-gray-50"><span class="text-sm text-gray-600 mb-2 sm:mb-0" id="tableInfo">แสดง 0-0 จาก 0 รายการ</span><div class="flex gap-2"><button class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 text-sm font-medium disabled:opacity-50 transition shadow-sm" id="prevPage">ก่อนหน้า</button><button class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 text-sm font-medium disabled:opacity-50 transition shadow-sm" id="nextPage">ถัดไป</button></div></div>
+                </div>
+                 <footer class="mt-8 text-center text-xs text-gray-400 pb-4">&copy; 2026 Seka Police Station. All rights reserved.</footer>
+            </div>
+
+            <!-- VIEW: PSYCH MODULE (NAKA PHITHAK REDESIGN) -->
+            <div id="view-psych" class="flex-1 overflow-y-auto p-6 custom-scrollbar hidden bg-gray-50">
+                <div class="mb-4 flex flex-col md:flex-row md:items-end justify-between gap-4">
+                    <div>
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-100 text-red-700 text-xs font-bold mb-3 border border-red-200 shadow-sm">
+                            <i class="fa-solid fa-shield-virus"></i> NAKA PHITHAK PROJECT
+                        </div>
+                        <h2 class="text-2xl font-extrabold text-gray-800 tracking-tight">โครงการนาคาพิทักษ์ รุกฆาตคนคลุ้มคลั่ง</h2>
+                        <p class="text-sm text-gray-500 mt-1 font-medium">ระบบฐานข้อมูลผู้ป่วยจิตเวชและบุคคลเฝ้าระวังที่มีแนวโน้มก่อเหตุรุนแรง</p>
+                    </div>
+                </div>
+
+                <!-- ALERTS BANNER: New Cases & Repeat Offenders -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-4 text-white flex justify-between items-center shadow-lg relative overflow-hidden group cursor-pointer" onclick="setPsychTab('new')">
+                        <div class="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full transition-transform group-hover:scale-150 duration-500"></div>
+                        <div class="z-10">
+                            <p class="text-blue-100 text-sm font-medium"><i class="fa-solid fa-bell mr-1"></i> พบผู้ป่วยรายใหม่ (รอเข้าสารบบ)</p>
+                            <div class="flex items-end gap-2 mt-1">
+                                <h3 class="text-3xl font-black leading-none" id="statPsychNew">0</h3>
+                                <span class="text-sm font-normal text-blue-100 mb-1">ราย</span>
+                            </div>
+                        </div>
+                        <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-xl z-10 border border-white/30 group-hover:bg-white/30 transition-colors"><i class="fa-solid fa-user-plus"></i></div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-r from-rose-600 to-red-700 rounded-2xl p-4 text-white flex justify-between items-center shadow-lg relative overflow-hidden group cursor-pointer" onclick="setPsychTab('repeat')">
+                        <div class="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full transition-transform group-hover:scale-150 duration-500"></div>
+                        <div class="z-10">
+                            <p class="text-red-100 text-sm font-medium"><i class="fa-solid fa-skull-crossbones mr-1"></i> เป้าหมายเก่าก่อเหตุซ้ำ (เฝ้าระวังพิเศษ)</p>
+                            <div class="flex items-end gap-2 mt-1">
+                                <h3 class="text-3xl font-black leading-none" id="statPsychRepeat">0</h3>
+                                <span class="text-sm font-normal text-red-100 mb-1">ราย</span>
+                            </div>
+                        </div>
+                        <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-xl z-10 border border-white/30 group-hover:bg-white/30 transition-colors"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    </div>
+                </div>
+
+                <!-- OVERALL STATS -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 relative overflow-hidden group cursor-pointer" onclick="setPsychTab('all')">
+                        <div class="absolute right-0 top-0 w-16 h-16 bg-gray-50 rounded-bl-full -z-0"></div>
+                        <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-xl z-10 group-hover:bg-gray-200 transition-colors"><i class="fa-solid fa-users"></i></div>
+                        <div class="z-10">
+                            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider">เป้าหมายรวม (เก่า+ใหม่)</p>
+                            <h3 class="text-3xl font-black text-gray-700 leading-none mt-1" id="psychTotal">0</h3>
+                        </div>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-red-100 flex items-center gap-4 relative overflow-hidden ring-1 ring-red-50 group cursor-pointer" onclick="setPsychRiskFilter('แดง')">
+                        <div class="absolute right-0 top-0 w-16 h-16 bg-red-50 rounded-bl-full -z-0"></div>
+                        <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-500 text-xl z-10 group-hover:bg-red-200 transition-colors"><i class="fa-solid fa-fire-flame-curved"></i></div>
+                        <div class="z-10">
+                            <p class="text-xs text-red-500 font-bold uppercase tracking-wider">ความเสี่ยงสูง</p>
+                            <h3 class="text-3xl font-black text-red-600 leading-none mt-1" id="psychHigh">0</h3>
+                        </div>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-amber-100 flex items-center gap-4 relative overflow-hidden ring-1 ring-amber-50 group cursor-pointer" onclick="setPsychRiskFilter('เหลือง')">
+                        <div class="absolute right-0 top-0 w-16 h-16 bg-amber-50 rounded-bl-full -z-0"></div>
+                        <div class="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-500 text-xl z-10 group-hover:bg-amber-200 transition-colors"><i class="fa-solid fa-eye"></i></div>
+                        <div class="z-10">
+                            <p class="text-xs text-amber-500 font-bold uppercase tracking-wider">เฝ้าระวังพิเศษ</p>
+                            <h3 class="text-3xl font-black text-amber-500 leading-none mt-1" id="psychMed">0</h3>
+                        </div>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-green-100 flex items-center gap-4 relative overflow-hidden ring-1 ring-green-50 group cursor-pointer" onclick="setPsychRiskFilter('เขียว')">
+                        <div class="absolute right-0 top-0 w-16 h-16 bg-green-50 rounded-bl-full -z-0"></div>
+                        <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-500 text-xl z-10 group-hover:bg-green-200 transition-colors"><i class="fa-solid fa-check-circle"></i></div>
+                        <div class="z-10">
+                            <p class="text-xs text-green-600 font-bold uppercase tracking-wider">ควบคุมได้/รับยา</p>
+                            <h3 class="text-3xl font-black text-green-600 leading-none mt-1" id="psychLow">0</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TABLE SECTION -->
+                <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
+                    <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-white">
+                        <h3 class="font-bold text-gray-800 text-lg"><i class="fa-solid fa-list-check text-indigo-600 mr-2"></i>ทำเนียบบุคคลเป้าหมาย</h3>
+                        
+                        <div class="flex flex-wrap items-center gap-3">
+                            <select id="psychRiskFilter" class="border border-gray-300 rounded-xl px-4 py-2 text-sm text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 hover:bg-gray-100 cursor-pointer transition">
+                                <option value="all">แสดงทุกระดับความเสี่ยง</option>
+                                <option value="แดง">เฉพาะ สีแดง (รุนแรง)</option>
+                                <option value="เหลือง">เฉพาะ สีเหลือง (เฝ้าระวัง)</option>
+                                <option value="เขียว">เฉพาะ สีเขียว (ปกติ)</option>
+                                <option value="รอประเมิน">เฉพาะ รอประเมิน (รายใหม่)</option>
+                            </select>
+                            
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                    <i class="fa-solid fa-search"></i>
+                                </span>
+                                <input type="text" id="psychSearch" placeholder="ค้นหาชื่อ, บัตร ปชช..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-64 transition-all shadow-inner bg-gray-50 focus:bg-white">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TABS -->
+                    <div class="flex overflow-x-auto gap-2 p-3 bg-gray-50 border-b border-gray-100 hide-scrollbar" id="psychTabsContainer">
+                        <button onclick="setPsychTab('all')" id="tab-psych-all" class="px-4 py-2 rounded-xl text-sm font-bold bg-white text-indigo-700 shadow-sm border border-gray-200 whitespace-nowrap transition-all flex items-center gap-2">
+                            <i class="fa-solid fa-layer-group"></i> ทั้งหมด (<span id="count-tab-all">0</span>)
+                        </button>
+                        <button onclick="setPsychTab('old')" id="tab-psych-old" class="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-200 hover:text-gray-800 border border-transparent whitespace-nowrap transition-all flex items-center gap-2">
+                            <i class="fa-solid fa-user-shield"></i> ผู้ป่วยรายเก่า (<span id="count-tab-old">0</span>)
+                        </button>
+                        <button onclick="setPsychTab('new')" id="tab-psych-new" class="px-4 py-2 rounded-xl text-sm font-medium text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-100 whitespace-nowrap transition-all flex items-center gap-2">
+                            <i class="fa-solid fa-user-plus"></i> เคสรายใหม่ (<span id="count-tab-new">0</span>)
+                        </button>
+                        <button onclick="setPsychTab('repeat')" id="tab-psych-repeat" class="px-4 py-2 rounded-xl text-sm font-medium text-red-600 bg-red-50 border border-red-100 hover:bg-red-100 whitespace-nowrap transition-all flex items-center gap-2">
+                            <i class="fa-solid fa-triangle-exclamation"></i> ก่อเหตุซ้ำ (<span id="count-tab-repeat">0</span>)
+                        </button>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-gray-50 border-b border-gray-200 text-[11px] uppercase tracking-wider text-gray-500 font-bold">
+                                <tr>
+                                    <th class="p-4 w-16 text-center">ภาพ</th>
+                                    <th class="p-4">ข้อมูลบุคคลเป้าหมาย</th>
+                                    <th class="p-4">พิกัด/ที่พักอาศัย</th>
+                                    <th class="p-4 text-center">ระดับความเสี่ยง</th>
+                                    <th class="p-4 text-center">ความเคลื่อนไหว</th>
+                                    <th class="p-4 text-center">สถานะระบบ</th>
+                                    <th class="p-4 text-center">แฟ้มประวัติ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="psychTableBody" class="text-sm text-gray-700 divide-y divide-gray-100 bg-white">
+                                <tr><td colspan="7" class="p-8 text-center text-gray-400"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i>กำลังรอโหลดข้อมูลโครงการนาคาพิทักษ์...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- PSYCH TABLE PAGINATION -->
+                    <div class="p-4 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center bg-gray-50 rounded-b-2xl">
+                        <span class="text-sm text-gray-600 mb-2 sm:mb-0" id="psychTableInfo">แสดง 0-0 จาก 0 รายการ</span>
+                        <div class="flex gap-2">
+                            <button class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 text-sm font-medium disabled:opacity-50 transition shadow-sm" id="prevPsychPage">ก่อนหน้า</button>
+                            <button class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 text-sm font-medium disabled:opacity-50 transition shadow-sm" id="nextPsychPage">ถัดไป</button>
+                        </div>
+                    </div>
+                </div>
+                 <footer class="mt-8 text-center text-xs text-gray-400 pb-4">&copy; 2026 Seka Police Station. Naka Phithak Project Module.</footer>
+            </div>
+        </main>
+    </div> <!-- END APP CONTAINER -->
+
+    <!-- ============================================== -->
+    <!-- พื้นที่สำหรับแสดงผลตอนปริ้นต์ -->
+    <!-- ============================================== -->
+    <div id="print-area" class="hidden bg-white text-black font-[Sarabun]"></div>
+
+    <script>
+        // --- 1. GLOBAL VARIABLES ---
+        let allData = [];
+        let psychData = [];
+        let logbookFilteredData = [];
+        let charts = {};
+        
+        // 191 List Variables
+        let currentPage = 1;
+        const rowsPerPage = 30; 
+        
+        // Psych Module Variables
+        let currentPsychPage = 1;
+        const psychRowsPerPage = 10; 
+        let currentPsychTab = 'all'; 
+
+        let activeIncidentFilter = null;
+        let dateFilterMode = 'all'; 
+        let autoSyncTimer = null;
+        let psychAutoSyncTimer = null; 
+        
+        const STORAGE_KEY_SHEET_URL = 'seka_police_sheet_url';
+        
+        const STORAGE_KEY_PSYCH_URL_DB = 'seka_police_psych_url_db'; 
+        const STORAGE_KEY_PSYCH_URL_RAW = 'seka_police_psych_url_raw'; 
+        
+        const PRESET_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQFeFAswKj2jFOgpT4Hsk0_wLVPVVMuGguWKWa2wg6wtvlY75MCzCDn3Ra-8g4lIMYOL4oSkaOrpjKH/pub?gid=1018909249&single=true&output=csv";
+        
+        // Embedded hardcoded links
+        const PRESET_PSYCH_DB_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTo_SnOBdk8TMrSrExWXjX1u6I3pyuiSNBLK_Rdld_mCY0q3Zd2hKsLCT86K99O-wZpNwp_xjVAnLK6/pub?gid=2087405500&single=true&output=csv";
+        const PRESET_PSYCH_RAW_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTo_SnOBdk8TMrSrExWXjX1u6I3pyuiSNBLK_Rdld_mCY0q3Zd2hKsLCT86K99O-wZpNwp_xjVAnLK6/pub?gid=440204264&single=true&output=csv"; 
+
+        // --- 2. INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            moment.locale('th');
+            
+            // Event Listeners 191
+            const csvInput = document.getElementById('csvInput');
+            if(csvInput) csvInput.addEventListener('change', handleFileUpload);
+            
+            const tambonFilter = document.getElementById('tambonFilter');
+            if(tambonFilter) tambonFilter.addEventListener('change', () => { activeIncidentFilter = null; updateDashboard(true); });
+            
+            const listTambonFilter = document.getElementById('listTambonFilter');
+            if(listTambonFilter) listTambonFilter.addEventListener('change', () => { renderTable(1); });
+            
+            const tableSearch = document.getElementById('tableSearch');
+            if(tableSearch) tableSearch.addEventListener('input', () => renderTable(1));
+            
+            const prevPage = document.getElementById('prevPage');
+            if(prevPage) prevPage.addEventListener('click', () => { if(currentPage > 1) renderTable(currentPage - 1); });
+            
+            const nextPage = document.getElementById('nextPage');
+            if(nextPage) nextPage.addEventListener('click', () => { renderTable(currentPage + 1); });
+            
+            // Event Listeners Psych
+            const psychSearch = document.getElementById('psychSearch');
+            if(psychSearch) psychSearch.addEventListener('input', () => { currentPsychPage = 1; renderPsychTable(); });
+
+            const psychRiskFilter = document.getElementById('psychRiskFilter');
+            if(psychRiskFilter) psychRiskFilter.addEventListener('change', () => { currentPsychPage = 1; renderPsychTable(); });
+
+            const prevPsychPageBtn = document.getElementById('prevPsychPage');
+            if(prevPsychPageBtn) prevPsychPageBtn.addEventListener('click', () => { if(currentPsychPage > 1) renderPsychTable(currentPsychPage - 1); });
+            
+            const nextPsychPageBtn = document.getElementById('nextPsychPage');
+            if(nextPsychPageBtn) nextPsychPageBtn.addEventListener('click', () => { renderPsychTable(currentPsychPage + 1); });
+
+            // Auto-Sync 191
+            const savedUrl = localStorage.getItem(STORAGE_KEY_SHEET_URL);
+            if (savedUrl) {
+                const loadingEl = document.getElementById('loadingOverlay');
+                if (loadingEl) loadingEl.classList.remove('hidden');
+                document.getElementById('loadingText').innerText = "กำลังเชื่อมต่อฐานข้อมูล...";
+                fetchGoogleSheet(savedUrl);
+                startAutoSync();
+            }
+
+            // Forced hardcoded links for Psych Module
+            localStorage.setItem(STORAGE_KEY_PSYCH_URL_DB, PRESET_PSYCH_DB_URL);
+            localStorage.setItem(STORAGE_KEY_PSYCH_URL_RAW, PRESET_PSYCH_RAW_URL);
+            
+            fetchPsychSheet(false);
+            startPsychAutoSync(); 
+        });
+
+        // --- 3. FUNCTIONS ---
+        function startAutoSync() {
+            if (autoSyncTimer) clearInterval(autoSyncTimer);
+            autoSyncTimer = setInterval(() => { fetchGoogleSheet(null, true); }, 60000); 
+        }
+
+        function setDateFilter(mode) {
+            dateFilterMode = mode;
+            ['btn-today', 'btn-week', 'btn-month', 'btn-all'].forEach(id => {
+                const btn = document.getElementById(id);
+                if(btn) {
+                    if(id === `btn-${mode}`) { btn.classList.add('active'); btn.classList.remove('inactive'); } 
+                    else { btn.classList.add('inactive'); btn.classList.remove('active'); }
+                }
+            });
+            activeIncidentFilter = null;
+            updateDashboard(true);
+        }
+
+        function filterByDate(data) {
+            if (dateFilterMode === 'all') return data;
+            const now = moment();
+            return data.filter(item => {
+                const itemDate = moment(item.timestamp);
+                if (dateFilterMode === 'today') return itemDate.isSame(now, 'day');
+                if (dateFilterMode === 'week') return itemDate.isSame(now, 'week');
+                if (dateFilterMode === 'month') return itemDate.isSame(now, 'month');
+                return true;
+            });
+        }
+
+        async function fetchWithRetry(url) {
+            if (!url) return "";
+            
+            const urlObj = new URL(url);
+            urlObj.searchParams.set('t', Date.now());
+            const freshUrl = urlObj.toString();
+
+            const checkValidCSV = (text) => {
+                const lowerText = text.trim().toLowerCase();
+                if (lowerText.startsWith("<!doctype") || lowerText.startsWith("<html")) {
+                    throw new Error("ไฟล์ถูกบล็อกโดย Google (โปรดตรวจสอบการ 'เผยแพร่ไปยังเว็บ' ว่าตั้งเป็น 'เอกสารทั้งหมด' หรือยัง)");
+                }
+                return text;
+            };
+
+            try {
+                const response = await fetch(freshUrl, { cache: 'no-store' });
+                if (response.ok) {
+                    return checkValidCSV(await response.text());
+                } else {
+                    console.warn(`Direct fetch failed with status: ${response.status}`);
+                }
+            } catch (e) {
+                console.warn("Direct fetch failed, trying proxies...", e);
+            }
+
+            const proxies = [
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(freshUrl)}`,
+                `https://corsproxy.io/?${encodeURIComponent(freshUrl)}`,
+                `https://thingproxy.freeboard.io/fetch/${freshUrl}`
+            ];
+            
+            for (const proxyUrl of proxies) {
+                try {
+                    const response = await fetch(proxyUrl);
+                    if (response.ok) {
+                        return checkValidCSV(await response.text());
+                    }
+                } catch (e) { 
+                    console.warn(`Proxy failed: ${proxyUrl}`); 
+                }
+            }
+            throw new Error(`เครือข่ายบล็อกการเชื่อมต่อ หรือลิงก์ถูกปิดกั้น (กรุณาเช็คการแชร์ไฟล์ชีต)`);
+        }
+
+        async function fetchGoogleSheet(urlOverride = null, isBackground = false) {
+            let url = urlOverride || localStorage.getItem(STORAGE_KEY_SHEET_URL);
+            if (!url && !isBackground) {
+                const input = prompt("กรุณาวางลิงก์ Google Sheet (CSV):", PRESET_SHEET_URL);
+                if (input && input.trim() !== "") { url = input.trim(); localStorage.setItem(STORAGE_KEY_SHEET_URL, url); startAutoSync(); } else { return; }
+            } else if (!url && isBackground) return;
+
+            const freshUrl = url.includes('?') ? `${url}&t=${Date.now()}` : `${url}?t=${Date.now()}`;
+            
+            const loadingEl = document.getElementById('loadingOverlay');
+            if (!isBackground && loadingEl) {
+                loadingEl.classList.remove('hidden');
+                document.getElementById('loadingText').innerText = "กำลังเชื่อมต่อกับ Google Sheet...";
+            } else {
+                const syncIcon = document.getElementById('syncIcon');
+                if(syncIcon) syncIcon.classList.add('fa-spin');
+            }
+
+            try {
+                const csvText = await fetchWithRetry(freshUrl);
+                processCSV(csvText, true);
+            } catch (error) {
+                console.error("Fetch Error:", error);
+                if(!isBackground) {
+                    if (loadingEl) loadingEl.classList.add('hidden');
+                    alert("ไม่สามารถดึงข้อมูล 191 ได้: " + error.message);
+                }
+            } finally { 
+                if(!isBackground && loadingEl) loadingEl.classList.add('hidden'); 
+                const syncIcon = document.getElementById('syncIcon');
+                if(syncIcon) syncIcon.classList.remove('fa-spin');
+            }
+        }
+
+        function configGoogleSheet() {
+            const currentUrl = localStorage.getItem(STORAGE_KEY_SHEET_URL) || PRESET_SHEET_URL;
+            const newUrl = prompt("ตั้งค่าลิงก์ Google Sheet (CSV):", currentUrl);
+            if (newUrl !== null) { localStorage.setItem(STORAGE_KEY_SHEET_URL, newUrl.trim()); if (newUrl.trim() !== "") { fetchGoogleSheet(newUrl.trim()); startAutoSync(); } }
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => processCSV(e.target.result, false);
+            reader.readAsText(file);
+        }
+
+        function processCSV(csvText, isCloudSource = false) {
+            Papa.parse(csvText, {
+                header: true, skipEmptyLines: true,
+                complete: (results) => {
+                    if (results.data.length === 0) return;
+
+                    const firstRow = results.data[0];
+                    const headers = Object.keys(firstRow);
+                    const findKey = (keywords) => headers.find(h => keywords.some(k => h.toLowerCase().includes(k.toLowerCase())));
+
+                    const colDate = findKey(['Date_Ops', 'วัน/เดือน/ปี ที่รับแจ้งเหตุ']) || 'Date_Ops';
+                    const colTime = findKey(['Time Ops', 'Time_Ops', 'เวลา']) || 'Time Ops';
+                    const colType = findKey(['Incident_Name', 'ประเภทเหตุ']) || 'Incident_Name';
+                    const colLoc = findKey(['ตำบลที่เกิดเหตุ', 'ตำบล']) || 'ตำบลที่เกิดเหตุ';
+                    const colDetail = findKey(['รายละเอียดเพิ่มเติม/จุดสังเกต', 'รายละเอียด']) || 'รายละเอียดเพิ่มเติม/จุดสังเกต';
+                    const colAction = findKey(['ผลการปฏิบัติ/การสั่งการ', 'ผลการปฏิบัติ']) || 'ผลการปฏิบัติ/การสั่งการ';
+                    const colUrgency = findKey(['ระดับความเร่งด่วน', 'ความเร่งด่วน']) || 'ระดับความเร่งด่วน';
+                    const colResponse = findKey(['ระยะเวลาที่ถึงที่เกิดเหตุ', 'ระยะเวลา']) || 'ระยะเวลาที่ถึงที่เกิดเหตุ';
+                    const colCaller = findKey(['ชื่อผู้แจ้ง', 'ผู้แจ้ง']) || 'ชื่อผู้แจ้ง';
+                    const colPhone = findKey(['เบอร์โทรศัพท์ผู้แจ้ง', 'เบอร์โทร']) || 'เบอร์โทรศัพท์ผู้แจ้ง';
+                    const colPatrol = findKey(['ชุดสายตรวจ', 'สายตรวจ']) || 'ชุดสายตรวจที่ออกระงับเหตุ';
+                    const colImage = findKey(['หลักฐานและภาพถ่าย','ภาพถ่าย', 'Image', 'รูปภาพ', 'Photo']) || 'ภาพถ่ายประกอบ(ถ้ามี)';
+                    const colCloseTime = findKey(['เวลาที่ปิดเหตุ', 'เวลาเสร็จสิ้น', 'ปิดเหตุ', 'เสร็จสิ้น']) || 'เวลาที่ปิดเหตุ/เสร็จสิ้น';
+
+                    allData = results.data.map(row => {
+                        const rawType = row[colType] || 'ไม่ระบุ';
+                        const cleanType = rawType.replace(/\[\d+\] /, '').trim();
+                        let timestamp = moment(row[colDate], ['D/M/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD']).toDate();
+                        if (isNaN(timestamp)) timestamp = new Date();
+
+                        return {
+                            date: row[colDate] || '',
+                            time: row[colTime] || '',
+                            type: cleanType,
+                            originalType: rawType,
+                            location: row[colLoc] || 'ไม่ระบุ',
+                            details: row[colDetail] || '',
+                            action: row[colAction] || '',
+                            urgency: row[colUrgency] || 'ปกติ',
+                            responseTimeStr: row[colResponse] || '0',
+                            caller: row[colCaller] || '-',
+                            phone: row[colPhone] || '-',
+                            patrol: row[colPatrol] || '-',
+                            image: row[colImage] || '', 
+                            closeTime: row[colCloseTime] || '-', 
+                            timestamp: timestamp
+                        };
+                    }).filter(item => item.date);
+
+                    allData.sort((a, b) => b.timestamp - a.timestamp);
+                    populateFilters();
+                    updateDashboard();
+                    updateSourceStatus(isCloudSource);
+                    renderTable(1);
+                    
+                    const now = moment();
+                    const adDateStr = `${now.format('DD MMM')} ${now.year()} ${now.format('HH:mm')}`;
+                    const lastUpdateEl = document.getElementById('lastUpdated');
+                    if(lastUpdateEl) lastUpdateEl.innerText = adDateStr;
+                }
+            });
+        }
+
+        function parseResponseTime(str) { if (!str) return 0; const match = str.match(/(\d+)/); return match ? parseInt(match[0]) : 0; }
+
+        function populateFilters() {
+            const tambons = [...new Set(allData.map(d => d.location))].sort();
+            ['tambonFilter', 'listTambonFilter', 'compSelect1', 'compSelect2'].forEach(id => {
+                const select = document.getElementById(id);
+                if(select) {
+                    select.innerHTML = id.includes('comp') ? '<option value="">เลือกตำบล...</option>' : '<option value="all">ทุกตำบล</option>';
+                    tambons.forEach(t => {
+                        if(t && t.trim() !== '') {
+                            const opt = document.createElement('option');
+                            opt.value = t; opt.innerText = t;
+                            select.appendChild(opt);
+                        }
+                    });
+                }
+            });
+        }
+
+        function updateSourceStatus(isCloud) {
+            const badge = document.getElementById('sourceTypeBadge');
+            const dot = document.getElementById('statusDot');
+            const syncIndicator = document.getElementById('syncIndicator');
+            
+            if(badge && dot) {
+                if (isCloud) {
+                    badge.innerText = "Online (Sheet)";
+                    badge.className = "text-[10px] px-1.5 py-0.5 rounded bg-green-600 text-white font-bold";
+                    dot.className = "w-2 h-2 bg-green-500 rounded-full status-pulse";
+                    if(syncIndicator) { syncIndicator.classList.remove('hidden'); syncIndicator.classList.add('flex'); }
+                } else {
+                    badge.innerText = "Offline (Local)";
+                    badge.className = "text-[10px] px-1.5 py-0.5 rounded bg-gray-600 text-gray-300";
+                    dot.className = "w-2 h-2 bg-gray-500 rounded-full";
+                    if(syncIndicator) { syncIndicator.classList.add('hidden'); syncIndicator.classList.remove('flex'); }
+                }
+            }
+        }
+
+        function clearIncidentFilter() { activeIncidentFilter = null; updateDashboard(true); }
+
+        function updateDashboard(keepCharts = false) {
+            let dateFilteredData = filterByDate(allData);
+            const tambonFilter = document.getElementById('tambonFilter');
+            let baseData = dateFilteredData;
+            
+            if(tambonFilter && tambonFilter.value !== 'all') {
+                baseData = dateFilteredData.filter(d => d.location === tambonFilter.value);
+            }
+            
+            let finalData = baseData;
+            
+            if (activeIncidentFilter) {
+                finalData = baseData.filter(d => d.type === activeIncidentFilter);
+                document.getElementById('activeFilterBadge').classList.remove('hidden');
+                document.getElementById('filterName').innerText = activeIncidentFilter;
+            } else {
+                document.getElementById('activeFilterBadge').classList.add('hidden');
+            }
+
+            updateStats(finalData);
+            renderCharts(baseData, finalData);
+        }
+
+        function updateStats(data) {
+            document.getElementById('statTotal').innerText = data.length.toLocaleString();
+            const urgentCount = data.filter(d => d.urgency.includes('ด่วน')).length;
+            document.getElementById('statUrgent').innerText = urgentCount.toLocaleString();
+            const totalTime = data.reduce((acc, curr) => acc + parseResponseTime(curr.responseTimeStr), 0);
+            const avgTime = data.length ? Math.round(totalTime / data.length) : 0;
+            document.getElementById('statResponseTime').innerHTML = `${avgTime} <span class="text-sm text-gray-500 font-normal">นาที</span>`;
+            const closedCases = data.filter(d => d.action && d.action.length > 5).length;
+            const successRate = data.length ? Math.round((closedCases / data.length) * 100) : 0;
+            document.getElementById('statSuccess').innerText = `${successRate}%`;
+        }
+
+        function renderCharts(baseData, finalData) {
+            const groupCount = (arr, key) => arr.reduce((acc, curr) => { const val = curr[key] || 'ไม่ระบุ'; acc[val] = (acc[val] || 0) + 1; return acc; }, {});
+
+            // A. Incident
+            const typeCounts = groupCount(baseData, 'type');
+            const sortedTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            const bgColors = sortedTypes.map(x => (!activeIncidentFilter || x[0] === activeIncidentFilter) ? '#4f46e5' : '#e2e8f0');
+
+            createChart('incidentTypeChart', 'bar', {
+                labels: sortedTypes.map(x => x[0]),
+                datasets: [{ label: 'จำนวนเหตุ', data: sortedTypes.map(x => x[1]), backgroundColor: bgColors, borderRadius: 6, barPercentage: 0.6 }]
+            }, { 
+                indexAxis: 'y', 
+                layout: { padding: { right: 42 } }, 
+                scales: { x: { display: false }, y: { display: true, grid: { display: false }, ticks: { font: { family: 'Sarabun', size: 12 }, autoSkip: false } } },
+                onClick: (e, el, chart) => { if (el.length > 0) { const label = chart.data.labels[el[0].index]; activeIncidentFilter = (activeIncidentFilter === label) ? null : label; updateDashboard(true); } },
+                onHover: (e, el) => e.native.target.style.cursor = el[0] ? 'pointer' : 'default'
+            ,
+                extraPlugins: [barEndValueLabelPlugin]});
+
+            // B. Location
+            const locCounts = groupCount(finalData, 'location');
+            createChart('locationChart', 'pie', {
+                labels: Object.keys(locCounts),
+                datasets: [{ data: Object.values(locCounts), backgroundColor: ['#4f46e5', '#06b6d4', '#f59e0b', '#ec4899', '#8b5cf6', '#10b981'], borderWidth: 2, borderColor: '#ffffff', hoverOffset: 15 }]
+            }, {
+                extraPlugins: [piePercentLabelPlugin],
+                layout: { padding: { left: 12, right: 12, top: 8, bottom: 18 } },
+                plugins: {
+                    legend: {
+                        display: false,
+                        fullSize: false,
+                        labels: { padding: 0 },
+                        position: 'bottom',
+                        labels: {
+                            font: { family: 'Sarabun', size: 12 },
+                            generateLabels: (chart) => {
+                                const data = chart.data;
+                                const ds = data.datasets[0];
+                                const values = ds.data || [];
+                                const total = values.reduce((a, b) => a + (Number(b) || 0), 0) || 1;
+
+                                return data.labels.map((label, i) => {
+                                    const v = Number(values[i]) || 0;
+                                    const pct = Math.round((v / total) * 100);
+                                    const bg = (ds.backgroundColor && ds.backgroundColor[i]) ? ds.backgroundColor[i] : '#94a3b8';
+                                    return {
+                                        text: `${v} เหตุ (${pct}%) - ${label}`,
+                                        fillStyle: bg,
+                                        strokeStyle: '#ffffff',
+                                        lineWidth: 2,
+                                        hidden: chart.getDatasetMeta(0).data[i].hidden,
+                                        index: i
+                                    };
+                                });
+                            }
+                        }
+                    }
+                }
+            });
+
+            // C. Time
+            const hourCounts = new Array(24).fill(0);
+            finalData.forEach(d => { if (d.time) { const h = parseInt(d.time.split(':')[0]); if (!isNaN(h)) hourCounts[h]++; } });
+            
+            const ctxTime = document.getElementById('timeChart').getContext('2d');
+            const gradientTime = ctxTime.createLinearGradient(0, 0, 0, 300);
+            gradientTime.addColorStop(0, 'rgba(245, 158, 11, 0.5)'); gradientTime.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
+
+            createChart('timeChart', 'line', {
+                labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+                datasets: [{ label: 'จำนวนเหตุ', data: hourCounts, borderColor: '#f59e0b', backgroundColor: gradientTime, fill: true, tension: 0.4, pointRadius: 4, pointHoverRadius: 6 }]
+            }, { scales: { x: { display: true, grid: { display: true, color: '#f1f5f9' }, ticks: { font: { family: 'Sarabun' } } }, y: { display: true, grid: { display: true, color: '#f1f5f9' }, beginAtZero: true } } });
+
+            // D. Urgency
+            const urgencyCounts = groupCount(finalData, 'urgency');
+            const urgencyLabels = Object.keys(urgencyCounts);
+            const pieColors = { 'ด่วนที่สุด': '#ef4444', 'ด่วนมาก': '#f97316', 'ด่วน': '#eab308', 'ปกติ': '#22c55e', 'ไม่ระบุ': '#94a3b8' };
+            createChart('urgencyChart', 'pie', {
+                labels: urgencyLabels,
+                datasets: [{ data: Object.values(urgencyCounts), backgroundColor: urgencyLabels.map(l => pieColors[l] || '#94a3b8'), borderWidth: 2, borderColor: '#ffffff', hoverOffset: 15 }]
+            }, { plugins: { legend: { display: false } }, layout: { padding: 10 }, extraPlugins: [piePercentLabelPlugin] });
+            
+            const legendEl = document.getElementById('urgencyLegend');
+            if(legendEl) {
+                legendEl.innerHTML = '';
+                urgencyLabels.forEach((key) => {
+                    legendEl.innerHTML += `<li class="flex items-center justify-between p-2 rounded hover:bg-gray-50 transition"><div class="flex items-center gap-3"><span class="w-3 h-3 rounded-full shadow-sm" style="background-color: ${pieColors[key] || '#94a3b8'}"></span><span class="text-gray-600 font-medium">${key}</span></div><span class="font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded-md text-xs">${urgencyCounts[key]}</span></li>`;
+                });
+            }
+        }
+
+        // --- CHART HELPER ---
+        function createChart(id, type, data, opts = {}) {
+            const ctx = document.getElementById(id).getContext('2d');
+            if (charts[id]) charts[id].destroy();
+            const { extraPlugins, ...optsClean } = (opts || {});
+            const defaults = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: type !== 'bar', position: 'bottom' } }, scales: type.includes('bar') || type === 'line' ? { x: { display: false }, y: { display: false } } : { x: { display: false }, y: { display: false } } };
+            const finalOptions = { ...defaults, ...optsClean };
+            if(optsClean && optsClean.scales) finalOptions.scales = optsClean.scales; 
+            charts[id] = new Chart(ctx, { type: type, data: data, options: finalOptions, plugins: extraPlugins ? extraPlugins : [] });
+            return charts[id];
+        }
+
+        const barEndValueLabelPlugin = {
+            id: 'barEndValueLabelPlugin',
+            afterDatasetsDraw(chart) {
+                const { ctx } = chart;
+                const dataset = chart.data.datasets && chart.data.datasets[0];
+                if (!dataset) return;
+                const meta = chart.getDatasetMeta(0);
+                if (!meta || !meta.data) return;
+
+                ctx.save();
+                ctx.font = 'bold 12px Sarabun';
+                ctx.fillStyle = '#111827';
+                ctx.textBaseline = 'middle';
+
+                meta.data.forEach((bar, i) => {
+                    const val = dataset.data[i];
+                    if (val === null || val === undefined) return;
+                    const x = bar.x + 6; 
+                    const y = bar.y;
+
+                    ctx.shadowColor = 'rgba(255,255,255,0.9)';
+                    ctx.shadowBlur = 4;
+                    ctx.fillText(String(val), x, y);
+                });
+                ctx.restore();
+            }
+        };
+
+        const piePercentLabelPlugin = {
+            id: 'piePercentLabelPlugin',
+            afterDatasetsDraw(chart) {
+                const { ctx } = chart;
+                const dataset = chart.data.datasets && chart.data.datasets[0];
+                const labels = chart.data.labels || [];
+                if (!dataset) return;
+
+                const dataArr = dataset.data || [];
+                const total = dataArr.reduce((a, b) => a + (Number(b) || 0), 0) || 1;
+                const meta = chart.getDatasetMeta(0);
+                if (!meta || !meta.data) return;
+
+                const chartArea = chart.chartArea;
+                const centerX = (chartArea.left + chartArea.right) / 2;
+                const centerY = (chartArea.top + chartArea.bottom) / 2;
+
+                ctx.save();
+
+                ctx.font = 'bold 11px Sarabun';
+                ctx.fillStyle = '#111827';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                meta.data.forEach((arc, i) => {
+                    const v = Number(dataArr[i]) || 0;
+                    if (v <= 0) return;
+                    const pct = (v / total) * 100;
+                    const pos = arc.tooltipPosition();
+                    const text = `${pct.toFixed(0)}%`;
+
+                    const padX = 6, padY = 3;
+                    const textW = ctx.measureText(text).width;
+                    const boxW = textW + padX * 2;
+                    const boxH = 16;
+
+                    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+                    ctx.shadowColor = 'rgba(0,0,0,0.10)';
+                    ctx.shadowBlur = 2;
+                    ctx.fillRect(pos.x - boxW / 2, pos.y - boxH / 2, boxW, boxH);
+
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = '#111827';
+                    ctx.fillText(text, pos.x, pos.y);
+                });
+
+                ctx.strokeStyle = 'rgba(17,24,39,0.35)';
+                ctx.lineWidth = 1.6;
+                const lineH = 12;
+
+                meta.data.forEach((arc, i) => {
+                    const v = Number(dataArr[i]) || 0;
+                    if (v <= 0) return;
+
+                    const pct = (v / total) * 100;
+                    const label = labels[i] ?? '';
+
+                    const startAngle = arc.startAngle ?? 0;
+                    const endAngle = arc.endAngle ?? 0;
+                    const midAngle = (startAngle + endAngle) / 2;
+
+                    const r = arc.outerRadius ?? 0;
+                    const x0 = centerX + Math.cos(midAngle) * (r - 2);
+                    const y0 = centerY + Math.sin(midAngle) * (r - 2);
+
+                    const x1 = centerX + Math.cos(midAngle) * (r + 12);
+                    const y1 = centerY + Math.sin(midAngle) * (r + 12);
+
+                    const isRight = Math.cos(midAngle) >= 0;
+                    const x2raw = x1 + (isRight ? 18 : -18);
+                    const y2 = y1;
+
+                    const t1 = `${v} เหตุ (${pct.toFixed(0)}%)`;
+                    const t2 = `${label}`;
+
+                    ctx.font = 'normal 10px Sarabun';
+                    const w1 = ctx.measureText(t1).width;
+
+                    ctx.font = 'bold 10.5px Sarabun';
+                    const w2 = ctx.measureText(t2).width;
+
+                    const textW = Math.max(w1, w2);
+                    const padX = 6, padY = 4;
+                    const boxW = textW + padX * 2;
+                    const boxH = (lineH * 2) + padY * 2;
+
+                    const minX = chartArea.left + 4;
+                    const maxX = chartArea.right - 4;
+
+                    let bx = isRight ? x2raw : (x2raw - boxW);
+                    bx = Math.min(Math.max(bx, minX), maxX - boxW);
+
+                    let by = y2 + 2;
+                    const maxY = chartArea.bottom - 4;
+                    if (by + boxH > maxY) by = y2 - boxH - 2;
+                    const minY = chartArea.top + 4;
+                    if (by < minY) by = minY;
+
+                    const x2 = isRight ? bx : (bx + boxW);
+
+                    ctx.beginPath();
+                    ctx.moveTo(x0, y0);
+                    ctx.lineTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+
+                    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+                    ctx.shadowColor = 'rgba(0,0,0,0.10)';
+                    ctx.shadowBlur = 2;
+                    ctx.fillRect(bx, by, boxW, boxH);
+                    ctx.shadowBlur = 0;
+
+                    const tx = bx + padX;
+                    const yLine1 = by + padY + lineH * 0.7;
+                    const yLine2 = yLine1 + lineH;
+
+                    ctx.font = 'normal 10px Sarabun';
+                    ctx.fillStyle = 'rgba(17,24,39,0.88)';
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(t1, tx, yLine1);
+
+                    ctx.font = 'bold 10.5px Sarabun';
+                    ctx.fillStyle = '#111827';
+                    ctx.fillText(t2, tx, yLine2);
+                });
+                ctx.restore();
+            }
+        };
+
+        // --- COMPARISON & MODALS ---
+        function openComparison() {
+            document.getElementById('compareModal').classList.remove('hidden');
+            const s1 = document.getElementById('compSelect1');
+            const s2 = document.getElementById('compSelect2');
+            if (s1.options.length > 1 && s1.value === "") s1.selectedIndex = 1;
+            if (s2.options.length > 2 && s2.value === "") s2.selectedIndex = 2;
+            renderComparisonCharts();
+        }
+
+        function closeComparison() { document.getElementById('compareModal').classList.add('hidden'); }
+        
+        function clearCompFilters() {
+            document.getElementById('compStartDate1').value = '';
+            document.getElementById('compEndDate1').value = '';
+            document.getElementById('compStartDate2').value = '';
+            document.getElementById('compEndDate2').value = '';
+            renderComparisonCharts();
+        }
+
+        function getFilteredData(location, startVal, endVal) {
+            let subset = allData.filter(d => d.location === location);
+            if (startVal && endVal) {
+                const start = moment(startVal).startOf('day');
+                const end = moment(endVal).endOf('day');
+                subset = subset.filter(item => moment(item.timestamp).isBetween(start, end, null, '[]'));
+            } else {
+                subset = filterByDate(subset); 
+            }
+            return subset;
+        }
+
+        function renderComparisonCharts() {
+            const t1 = document.getElementById('compSelect1').value;
+            const t2 = document.getElementById('compSelect2').value;
+            if (!t1 || !t2) return;
+
+            const s1 = document.getElementById('compStartDate1').value;
+            const e1 = document.getElementById('compEndDate1').value;
+            const s2 = document.getElementById('compStartDate2').value;
+            const e2 = document.getElementById('compEndDate2').value;
+
+            const data1 = getFilteredData(t1, s1, e1);
+            const data2 = getFilteredData(t2, s2, e2);
+
+            const combinedData = [...data1, ...data2];
+            const typeCounts = combinedData.reduce((acc, curr) => { const val = curr.type || 'ไม่ระบุ'; acc[val] = (acc[val] || 0) + 1; return acc; }, {});
+            const top5Types = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(entry => entry[0]);
+            if (top5Types.length === 0) top5Types.push("ไม่มีข้อมูล");
+
+            const counts1 = top5Types.map(t => data1.filter(d => d.type === t).length * -1); 
+            const counts2 = top5Types.map(t => data2.filter(d => d.type === t).length);      
+
+            if (charts['compCountChart']) charts['compCountChart'].destroy();
+            charts['compCountChart'] = new Chart(document.getElementById('compCountChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: top5Types,
+                    datasets: [
+                        { label: t1, data: counts1, backgroundColor: '#4f46e5', borderRadius: {topLeft: 4, bottomLeft: 4}, borderSkipped: false },
+                        { label: t2, data: counts2, backgroundColor: '#ec4899', borderRadius: {topRight: 4, bottomRight: 4}, borderSkipped: false }
+                    ]
+                },
+                options: { 
+                    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true, ticks: { callback: function(val) { return Math.abs(val); } }, grid: { color: '#f1f5f9' } },
+                        y: { stacked: true, grid: { display: false }, ticks: { font: { family: 'Sarabun', size: 11 } } }
+                    },
+                    plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: function(context) { return context.dataset.label + ': ' + Math.abs(context.raw); } } } } 
+                } 
+            });
+
+            const getAvg = (d) => { if (d.length === 0) return 0; const total = d.reduce((acc, curr) => acc + parseResponseTime(curr.responseTimeStr), 0); return Math.round(total / d.length); };
+            const avg1 = getAvg(data1) * -1;
+            const avg2 = getAvg(data2);
+
+            createChart('compResponseChart', 'bar', {
+                labels: ['เวลาเฉลี่ย (นาที)'],
+                datasets: [
+                    { label: t1, data: [avg1], backgroundColor: '#4f46e5', borderRadius: {topLeft: 6, bottomLeft: 6}, borderSkipped: false },
+                    { label: t2, data: [avg2], backgroundColor: '#ec4899', borderRadius: {topRight: 6, bottomRight: 6}, borderSkipped: false }
+                ]
+            }, { 
+                indexAxis: 'y',
+                scales: { x: { stacked: true, ticks: { callback: function(val) { return Math.abs(val); } } }, y: { stacked: true } },
+                plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return context.dataset.label + ': ' + Math.abs(context.raw) + ' นาที'; } } } }
+            });
+
+            const getHourCounts = (d) => { const h = new Array(24).fill(0); d.forEach(item => { if (item.time) { const hr = parseInt(item.time.split(':')[0]); if (!isNaN(hr)) h[hr]++; } }); return h; };
+            createChart('compTimeChart', 'line', {
+                labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+                datasets: [
+                    { label: t1, data: getHourCounts(data1), borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true, tension: 0.4 },
+                    { label: t2, data: getHourCounts(data2), borderColor: '#ec4899', backgroundColor: 'rgba(236, 72, 153, 0.1)', fill: true, tension: 0.4 }
+                ]
+            }, { scales: { x: { display: true, grid: { display: true } }, y: { display: true, beginAtZero: true } } });
+        }
+
+        // --- 191 LIST TABLE ---
+        function renderTable(page = 1) {
+            const listTambonFilter = document.getElementById('listTambonFilter');
+            const tableSearch = document.getElementById('tableSearch');
+            
+            const listTambon = listTambonFilter ? listTambonFilter.value : 'all';
+            const searchTerm = tableSearch ? tableSearch.value.toLowerCase() : '';
+            
+            let filteredData = allData;
+            if (listTambon !== 'all') filteredData = filteredData.filter(d => d.location === listTambon);
+            if (searchTerm) filteredData = filteredData.filter(i => 
+                i.type.toLowerCase().includes(searchTerm) || 
+                i.location.toLowerCase().includes(searchTerm) || 
+                i.caller.toLowerCase().includes(searchTerm) || 
+                i.phone.includes(searchTerm) || 
+                i.patrol.toLowerCase().includes(searchTerm)
+            );
+
+            const totalItems = filteredData.length;
+            const totalPages = Math.ceil(totalItems / rowsPerPage);
+            if (page < 1) page = 1; if (page > totalPages && totalPages > 0) page = totalPages;
+            currentPage = page;
+
+            const tbody = document.getElementById('incidentTableBody');
+            if (tbody) {
+                tbody.innerHTML = '';
+                if (filteredData.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>`;
+                } else {
+                    filteredData.slice((page - 1) * rowsPerPage, page * rowsPerPage).forEach((item, index) => {
+                        let dateDisplay = "-";
+                        if (moment(item.timestamp).isValid()) {
+                            const adYear = moment(item.timestamp).year().toString().substr(2);
+                            dateDisplay = `${moment(item.timestamp).format('DD MMM')} ${adYear}`;
+                        }
+
+                        let urgencyClass = 'bg-gray-100 text-gray-600';
+                        if(item.urgency.includes('ด่วนที่สุด')) urgencyClass = 'bg-red-100 text-red-700 border-red-200';
+                        else if(item.urgency.includes('ด่วนมาก')) urgencyClass = 'bg-orange-100 text-orange-700 border-orange-200';
+                        else if(item.urgency.includes('ด่วน')) urgencyClass = 'bg-amber-100 text-amber-700 border-amber-200';
+                        else urgencyClass = 'bg-green-100 text-green-700 border-green-200';
+
+                        const realIndex = allData.indexOf(item);
+
+                        tbody.innerHTML += `
+                        <tr class="hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 group">
+                            <td class="p-4 border-b border-gray-100">
+                                <div class="font-medium text-gray-800">${dateDisplay}</div>
+                                <div class="text-xs text-gray-500">${item.time} น.</div>
+                            </td>
+                            <td class="p-4 border-b border-gray-100">
+                                <span class="font-medium text-indigo-700 block truncate w-40" title="${item.originalType}">${item.type}</span>
+                            </td>
+                            <td class="p-4 border-b border-gray-100">
+                                <div class="text-sm text-gray-800 font-medium">${item.caller}</div>
+                                <div class="text-xs text-gray-500"><i class="fa-solid fa-phone mr-1"></i>${item.phone}</div>
+                            </td>
+                            <td class="p-4 border-b border-gray-100 text-gray-600 w-32">${item.location}</td>
+                            <td class="p-4 border-b border-gray-100 text-gray-500 text-xs w-48">
+                                <div class="line-clamp-1" title="${item.patrol}">${item.patrol}</div>
+                            </td>
+                            <td class="p-4 border-b border-gray-100 text-center">
+                                <span class="px-2 py-1 rounded-full text-[10px] font-bold border ${urgencyClass}">${item.urgency}</span>
+                            </td>
+                            <td class="p-4 border-b border-gray-100 text-center">
+                                <button onclick="openDetailModal(${realIndex})" class="text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 p-2 rounded-lg transition">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </td>
+                        </tr>`;
+                    });
+                }
+            }
+            
+            const tableInfo = document.getElementById('tableInfo');
+            if(tableInfo) tableInfo.innerText = `แสดง ${(totalItems===0?0:(page-1)*rowsPerPage+1)}-${Math.min(page*rowsPerPage, totalItems)} จาก ${totalItems} รายการ`;
+            
+            const prevBtn = document.getElementById('prevPage');
+            if(prevBtn) prevBtn.disabled = currentPage === 1;
+            
+            const nextBtn = document.getElementById('nextPage');
+            if(nextBtn) nextBtn.disabled = currentPage === totalPages || totalPages === 0;
+        }
+
+        function openDetailModal(index) {
+            const item = allData[index];
+            if(!item) return;
+
+            // Ensure Psych modal is closed when opening incident detail
+            try { closePsychModal(); } catch(e) {}
+
+            const content = document.getElementById('detailContent');
+            const adYear = moment(item.timestamp).year();
+            const fullDate = `${moment(item.timestamp).format('D MMMM')} ${adYear}`;
+
+            let urgencyBadgeClass = 'bg-gray-200 text-gray-700';
+            if(item.urgency.includes('ด่วนที่สุด')) urgencyBadgeClass = 'bg-red-200 text-red-800 border border-red-300';
+            else if(item.urgency.includes('ด่วนมาก')) urgencyBadgeClass = 'bg-orange-200 text-orange-800 border border-orange-300';
+            else if(item.urgency.includes('ด่วน')) urgencyBadgeClass = 'bg-amber-200 text-amber-800 border border-amber-300';
+            else urgencyBadgeClass = 'bg-green-200 text-green-800 border border-green-300';
+
+            let imageSection = '';
+            if (item.image && item.image.trim() !== '') {
+                const rawImages = item.image.split(',');
+                const validImages = rawImages
+                    .map(url => url.trim())
+                    .filter(url => url !== '')
+                    .map(url => {
+                        let displayUrl = url;
+                        let fullUrl = url;
+                        if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
+                            let id = '';
+                            const idMatch = url.match(/id=([a-zA-Z0-9_-]+)/);
+                            if (idMatch) id = idMatch[1];
+                            else {
+                                const dMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+                                if (dMatch) id = dMatch[1];
+                            }
+                            if (id) { displayUrl = `https://drive.google.com/thumbnail?id=${id}&sz=w400`; }
+                        }
+                        return { display: displayUrl, full: fullUrl };
+                    })
+                    .slice(0, 2); 
+
+                if (validImages.length > 0) {
+                    const imgHtml = validImages.map(imgObj => `
+                        <div class="aspect-square w-full rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-100 flex items-center justify-center relative group">
+                            <img src="${imgObj.display}" alt="หลักฐาน" referrerpolicy="no-referrer" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
+                                onerror="this.src='https://via.placeholder.com/400?text=Image+Error';">
+                            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 pointer-events-none"></div>
+                            <a href="${imgObj.full}" target="_blank" class="absolute bottom-2 right-2 bg-white/90 p-1.5 rounded-full text-gray-700 hover:text-indigo-600 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-300" title="เปิดรูปเต็ม">
+                                <i class="fa-solid fa-expand"></i>
+                            </a>
+                        </div>
+                    `).join('');
+                    
+                    imageSection = `
+                        <div class="md:col-span-2 mt-2">
+                            <h4 class="font-bold text-gray-700 mb-3 border-b pb-2"><i class="fa-solid fa-camera mr-2 text-gray-500"></i>ภาพถ่ายประกอบ</h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                ${imgHtml}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            content.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                        <h4 class="font-bold text-gray-700 mb-3 border-b pb-2"><i class="fa-solid fa-circle-info mr-2 text-indigo-500"></i>ข้อมูลการรับแจ้ง</h4>
+                        <div class="space-y-2 text-sm">
+                            <p><span class="font-semibold text-gray-500 w-24 inline-block">วันที่:</span> ${fullDate}</p>
+                            <p><span class="font-semibold text-gray-500 w-24 inline-block">เวลา:</span> ${item.time} น.</p>
+                            <p><span class="font-semibold text-gray-500 w-24 inline-block">ประเภทเหตุ:</span> <span class="text-indigo-700 font-bold">${item.originalType}</span></p>
+                            <p><span class="font-semibold text-gray-500 w-24 inline-block">ระดับความเร่งด่วน:</span> <span class="px-2 py-0.5 rounded text-xs font-bold ${urgencyBadgeClass}">${item.urgency}</span></p>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                        <h4 class="font-bold text-gray-700 mb-3 border-b pb-2"><i class="fa-solid fa-user mr-2 text-green-500"></i>ข้อมูลผู้แจ้ง</h4>
+                        <div class="space-y-2 text-sm">
+                            <p><span class="font-semibold text-gray-500 w-24 inline-block">ชื่อผู้แจ้ง:</span> ${item.caller}</p>
+                            <p><span class="font-semibold text-gray-500 w-24 inline-block">เบอร์โทรศัพท์:</span> ${item.phone}</p>
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-2 bg-gray-50 p-4 rounded-lg border border-gray-100">
+                        <h4 class="font-bold text-gray-700 mb-3 border-b pb-2"><i class="fa-solid fa-map-location-dot mr-2 text-red-500"></i>สถานที่และรายละเอียด</h4>
+                        <div class="space-y-2 text-sm">
+                            <p><span class="font-semibold text-gray-500 w-24 inline-block">สถานที่เกิดเหตุ:</span> ${item.location}</p>
+                            <div class="mt-2">
+                                <span class="font-semibold text-gray-500 block mb-1">รายละเอียดเพิ่มเติม/จุดสังเกต:</span>
+                                <div class="bg-white p-3 rounded border border-gray-200 text-gray-700 leading-relaxed text-xs">
+                                    ${item.details || '-'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${imageSection}
+
+                    <div class="md:col-span-2 bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+                        <h4 class="font-bold text-indigo-800 mb-3 border-b border-indigo-200 pb-2"><i class="fa-solid fa-shield-cat mr-2"></i>การปฏิบัติงานของเจ้าหน้าที่</h4>
+                        <div class="space-y-2 text-sm">
+                            <p><span class="font-semibold text-gray-500 w-32 inline-block">ชุดสายตรวจ:</span> ${item.patrol}</p>
+                            <p><span class="font-semibold text-gray-500 w-32 inline-block">เวลาถึงที่เกิดเหตุ:</span> ${item.responseTimeStr}</p>
+                            <div class="mt-2">
+                                <span class="font-semibold text-gray-500 block mb-1">ผลการปฏิบัติ:</span>
+                                <div class="bg-white p-3 rounded border border-gray-200 text-gray-700 leading-relaxed text-xs">
+                                    ${item.action || '-'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // แสดง Pop-up
+            const modal = document.getElementById('detailModal');
+            if (modal) modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+
+            document.getElementById('detailModal').classList.remove('hidden');
+        }
+
+        function closeDetailModal() { document.getElementById('detailModal').classList.add('hidden'); document.body.style.overflow = ''; }
+
+        // ==============================================
+        // --- PRINTING LOGBOOK MODAL SYSTEM ---
+        // ==============================================
+        function openLogbookPrintModal() {
+            document.getElementById('logbookPrintModal').classList.remove('hidden');
+            const today = moment().format('YYYY-MM-DD');
+            document.getElementById('logbookStartDate').value = today;
+            document.getElementById('logbookEndDate').value = today;
+            renderLogbookPreview();
+        }
+
+        function closeLogbookPrintModal() { document.getElementById('logbookPrintModal').classList.add('hidden'); }
+
+        function renderLogbookPreview() {
+            const startVal = document.getElementById('logbookStartDate').value;
+            const endVal = document.getElementById('logbookEndDate').value;
+            
+            logbookFilteredData = allData;
+            
+            if (startVal && endVal) {
+                const startDate = moment(startVal).startOf('day');
+                const endDate = moment(endVal).endOf('day');
+                logbookFilteredData = allData.filter(item => moment(item.timestamp).isBetween(startDate, endDate, null, '[]'));
+            }
+
+            logbookFilteredData.sort((a, b) => a.timestamp - b.timestamp);
+
+            const tbody = document.getElementById('logbookPreviewBody');
+            const countEl = document.getElementById('logbookPreviewCount');
+            if (countEl) countEl.innerText = logbookFilteredData.length;
+            
+            if (tbody) {
+                tbody.innerHTML = '';
+                if(logbookFilteredData.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center p-6 text-gray-400">ไม่มีข้อมูลการรับแจ้งเหตุในวันที่เลือก</td></tr>';
+                    return;
+                }
+
+                logbookFilteredData.forEach(item => {
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-3 border-b border-gray-100">${item.date}</td>
+                            <td class="p-3 border-b border-gray-100 font-medium">${item.time} น.</td>
+                            <td class="p-3 border-b border-gray-100 text-indigo-700">${item.originalType}</td>
+                            <td class="p-3 border-b border-gray-100"><div class="line-clamp-1 w-48">${item.location}</div></td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        function printLogbookReport() {
+            if(logbookFilteredData.length === 0) { alert('ไม่มีข้อมูลให้พิมพ์ กรุณาเลือกช่วงเวลาใหม่'); return; }
+            
+            const printArea = document.getElementById('print-area');
+            const startVal = document.getElementById('logbookStartDate').value;
+            const endVal = document.getElementById('logbookEndDate').value;
+            
+            let dateRangeText = "";
+            if (startVal && endVal) {
+                if (startVal === endVal) {
+                    dateRangeText = `<span style="font-weight: bold;">ประจำวันที่</span> ${moment(startVal).format('D MMMM YYYY')}`;
+                } else {
+                    dateRangeText = `<span style="font-weight: bold;">ห้วงวันที่</span> ${moment(startVal).format('D MMMM YYYY')}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="font-weight: bold;">ถึงวันที่</span>&nbsp;&nbsp;&nbsp;&nbsp;${moment(endVal).format('D MMMM YYYY')}`;
+                }
+            } else {
+                dateRangeText = `<span style="font-weight: bold;">ข้อมูลทั้งหมด</span>`;
+            }
+
+            const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+            const currentMonth = thaiMonths[moment().month()];
+            const currentYear = moment().year() + 543;
+            const monthForSignature = (startVal && endVal) ? thaiMonths[moment(endVal).month()] : currentMonth;
+            const yearForSignature = (startVal && endVal) ? (moment(endVal).year() + 543) : currentYear;
+            const printDateTime = moment().format('DD/MM/YYYY HH:mm');
+            
+            let rowsHtml = '';
+            logbookFilteredData.forEach(item => {
+                let receiveTime = moment(item.time, 'HH:mm');
+                let orderTime = item.time;
+                let arriveTime = '-';
+                
+                let resMinutes = parseInt(item.responseTimeStr);
+                if(!isNaN(resMinutes) && receiveTime.isValid()) {
+                    arriveTime = receiveTime.clone().add(resMinutes, 'minutes').format('HH:mm');
+                }
+
+                let formattedCloseTime = item.closeTime;
+                if (formattedCloseTime && formattedCloseTime !== '-') {
+                    let timeParts = formattedCloseTime.split(':');
+                    if (timeParts.length >= 2) {
+                        formattedCloseTime = timeParts[0] + ':' + timeParts[1];
+                    }
+                }
+
+                rowsHtml += `
+                    <tr class="print-break-avoid">
+                        <td class="data-cell border border-black p-1 align-top">${item.date}</td>
+                        <td class="data-cell border border-black p-1 align-top">${item.time}</td>
+                        <td class="data-cell border border-black p-1 align-top text-left leading-tight text-[11px]">${item.originalType} <br> ${item.location} <br> ${item.details || ''}</td>
+                        <td class="data-cell border border-black p-1 align-top">${orderTime}</td>
+                        <td class="data-cell border border-black p-1 align-top">${arriveTime}</td>
+                        <td class="data-cell border border-black p-1 align-top">${item.responseTimeStr}</td>
+                        <td class="data-cell border border-black p-1 align-top leading-tight text-[11px]">${item.patrol}</td>
+                        <td class="data-cell border border-black p-1 align-top">-</td>
+                        <td class="data-cell border border-black p-1 align-top">-</td>
+                        <td class="data-cell border border-black p-1 align-top">${formattedCloseTime}</td>
+                        <td class="data-cell border border-black p-1 align-top text-left leading-tight text-[11px]">${item.action}</td>
+                        <td class="data-cell border border-black p-1 align-top"></td>
+                    </tr>
+                `;
+            });
+
+            const styleTag = document.getElementById('dynamic-print-style');
+            if (styleTag) styleTag.innerHTML = '';
+
+            printArea.innerHTML = `
+                <div class="w-full bg-white text-black font-[Sarabun] text-sm relative">
+                    <table class="w-full border-collapse logbook-table table-fixed text-[11px] text-center">
+                        <colgroup>
+                            <col style="width:8%"><col style="width:4%"><col style="width:24%">
+                            <col style="width:4%"><col style="width:4%"><col style="width:7%">
+                            <col style="width:13%"><col style="width:4%"><col style="width:4%">
+                            <col style="width:4%"><col style="width:20%"><col style="width:4%">
+                        </colgroup>
+                        <thead style="display: table-header-group;">
+                            <tr class="no-print-border"><th colspan="12" class="no-print-border" style="height: 0.35in; padding: 0;"></th></tr>
+                            <tr class="no-print-border">
+                                <th colspan="12" class="no-print-border" style="padding-bottom: 15px; position: relative; text-align: center;">
+                                    <div style="position: absolute; top: 0; right: 0; font-size: 11px; font-weight: normal; color: #374151;">วันที่พิมพ์/เวลา: ${printDateTime} น.</div>
+                                    <div style="font-size: 18px; font-weight: bold; line-height: 1.3;">สมุดบันทึกข้อมูลการรับแจ้ง สั่งการ เร่งรัด และปิดเหตุ<br>สภ.เซกา ภ.จว.บึงกาฬ</div>
+                                    <div style="font-size: 14px; font-weight: normal; margin-top: 4px;">${dateRangeText}</div>
+                                    <div style="height: 1em;"></div>
+                                </th>
+                            </tr>
+                            <tr>
+                                <th rowspan="2" class="data-cell border border-black p-1 w-[7%]">วัน เดือน ปี</th>
+                                <th colspan="2" class="data-cell border border-black p-1 w-[20%]">(๑) การรับแจ้งเหตุ</th>
+                                <th colspan="4" class="data-cell border border-black p-1 w-[25%]">(๒) การสั่งการ</th>
+                                <th colspan="2" class="data-cell border border-black p-1 w-[13%]">(๓) การติดตามเร่งรัด</th>
+                                <th colspan="2" class="data-cell border border-black p-1 w-[25%]">(๔) การปิดเหตุ</th>
+                                <th rowspan="2" class="data-cell border border-black p-1 w-[10%]">หมายเหตุ</th>
+                            </tr>
+                            <tr>
+                                <th class="data-cell border border-black p-1 w-[5%]">เวลา</th><th class="data-cell border border-black p-1">รายละเอียดเหตุ</th>
+                                <th class="data-cell border border-black p-1 w-[5%]">เวลาสั่งการ<br>เหตุ</th><th class="data-cell border border-black p-1 w-[5%]">เวลาถึงที่<br>เกิดเหตุ</th>
+                                <th class="data-cell border border-black p-1 w-[7%]"><span class="th-rt">ระยะเวลาที่ใช้ในการถึงที่เกิดเหตุ</span></th>
+                                <th class="data-cell border border-black p-1 w-[8%]"><span class="th-patrol">ผู้ปฏิบัติ</span></th>
+                                <th class="data-cell border border-black p-1 w-[4%]">เวลา</th><th class="data-cell border border-black p-1">รายละเอียด</th>
+                                <th class="data-cell border border-black p-1 w-[4%]">เวลา</th><th class="data-cell border border-black p-1">รายละเอียด</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rowsHtml}</tbody>
+                    </table>
+
+                    <div class="signature-gap"></div>
+                    <div class="print-break-avoid w-full text-[14px] font-[Sarabun] signature-new-page signature-section" style="margin:0 auto; width:max-content; transform:translateX(48px); text-align:center;">
+                        <div class="sig-col" style="display: flex; flex-direction: column; align-items: flex-start; width: max-content;">
+                            <div style="text-align: center; margin-left: 300px;"><div style="margin-left:-288px; text-align:left;">ตรวจแล้วถูกต้อง</div></div>
+                            <div style="margin-left:-48px; margin-top:1em;">พ.ต.ท.</div>
+                            <div style="text-align: center; margin-left: 0px; margin-top:1em;">
+                                <div>(ภูมิ&nbsp;&nbsp;&nbsp;&nbsp;เฉลิมชาติ)</div><div>รอง ผกก.ป.สภ.เซกา</div><div>....... / ${monthForSignature} / ${yearForSignature}</div>
+                            </div>
+                        </div>
+                        <div class="sig-col" style="display: flex; flex-direction: column; align-items: flex-start; width: max-content; margin-left: 40px;">
+                            <div style="text-align: center; margin-left: 40px;"><div style="margin-bottom: 20px;">ตรวจแล้วและรับรองว่าถูกต้อง</div></div>
+                            <div style="margin-bottom: 20px;">พ.ต.อ.</div>
+                            <div style="text-align: center; margin-left: 40px;">
+                                <div>(คารม&nbsp;&nbsp;&nbsp;&nbsp;พรมคุณ)</div><div>ผกก.สภ.เซกา</div><div>....... / ${monthForSignature} / ${yearForSignature}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            setTimeout(() => { window.print(); }, 500);
+        }
+
+        // --- 4. PSYCH MODULE FUNCTIONS ---
+        function startPsychAutoSync() {
+            if (psychAutoSyncTimer) clearInterval(psychAutoSyncTimer);
+            psychAutoSyncTimer = setInterval(() => { fetchPsychSheet(true); }, 60000); 
+        }
+
+        function normalizeName(nameStr) {
+            if (!nameStr) return '';
+            let s = nameStr.toString().trim();
+            s = s.replace(/^(นาย|นาง|นางสาว|น\.ส\.|ด\.ช\.|ด\.ญ\.|พล\.ต\.ต\.|พ\.ต\.อ\.|พ\.ต\.ท\.|พ\.ต\.ต\.|ร\.ต\.อ\.|ร\.ต\.ท\.|ร\.ต\.ต\.|ด\.ต\.|จ\.ส\.ต\.|ส\.ต\.อ\.|ส\.ต\.ท\.|ส\.ต\.ต\.)\s*/, '');
+            s = s.replace(/\s+/g, ' ').trim();
+            return s;
+        }
+
+        // --- UX Helpers (Psych Module) ---
+        function toDriveThumbnail(url, size = 'w150') {
+            if (!url) return '';
+            let u = url.toString().trim();
+            if (!u) return '';
+            if (u.includes('drive.google.com')) {
+                const idMatch = u.match(/(?:id=|\/d\/)([a-zA-Z0-9_-]+)/);
+                if (idMatch) return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=${size}`;
+            }
+            return u;
+        }
+
+        function buildSpecialIconHtml(noteText = '', isRepeatOld = false, inline = false) {
+            const t = (noteText || '').toString();
+            const icons = [];
+
+            const has = (kw) => t.includes(kw);
+
+            const sizeCls = inline ? 'w-5 h-5' : 'w-6 h-6';
+            const icoCls  = inline ? 'text-[10px]' : 'text-[12px]';
+
+            // 🚑 ส่งรักษาต่อ -> รถพยาบาล (สีฟ้า)
+            if (has('ส่งรักษาต่อ')) {
+                icons.push(`<span title="ส่งรักษาต่อ" class="inline-flex items-center justify-center ${sizeCls} rounded-full bg-sky-50 border border-sky-200 text-sky-600 shadow-sm">
+                    <i class="fa-solid fa-truck-medical ${icoCls}"></i>
+                </span>`);
+            }
+
+            // 💊 ดูแลใกล้ชิด / มีเจ้าหน้าที่ตำรวจ / มีแพทย์ -> เม็ดยา (สีเขียวมิ้นต์)
+            if (has('ดูแลอย่างใกล้ชิด') || has('ดูแลใกล้ชิด') || has('มีเจ้าหน้าที่ตำรวจ') || has('มีตำรวจ') || has('มีแพทย์')) {
+                icons.push(`<span title="ดูแลใกล้ชิด/มีทีมดูแล" class="inline-flex items-center justify-center ${sizeCls} rounded-full bg-emerald-50 border border-emerald-200 text-emerald-500 shadow-sm">
+                    <i class="fa-solid fa-pills ${icoCls}"></i>
+                </span>`);
+            }
+
+            // ☠️ เสียชีวิต -> กะโหลก (สีดำ)
+            if (has('เสียชีวิต')) {
+                icons.push(`<span title="เสียชีวิต" class="inline-flex items-center justify-center ${sizeCls} rounded-full bg-gray-100 border border-gray-300 text-gray-900 shadow-sm">
+                    <i class="fa-solid fa-skull ${icoCls}"></i>
+                </span>`);
+            }
+
+            // 🔗 ถูกจับกุม / ดำเนินคดี -> กุญแจมือ (สีแดง)
+            if (has('ถูกจับกุม') || has('ดำเนินคดี') || has('จับกุม') || has('ฝากขัง')) {
+                icons.push(`<span title="ถูกจับกุม/ดำเนินคดี" class="inline-flex items-center justify-center ${sizeCls} rounded-full bg-red-50 border border-red-200 text-red-600 shadow-sm">
+                    <i class="fa-solid fa-handcuffs ${icoCls}"></i>
+                </span>`);
+            }
+
+            // ⚠️ คนเก่าก่อเหตุซ้ำ -> แสดงเครื่องหมายอัศเจรีย์ (ใช้ร่วมกับแฟ้มแดงเข้ม)
+            if (isRepeatOld || has('ก่อเหตุซ้ำ') || has('ทำซ้ำ') || has('ซ้ำ')) {
+                icons.push(`<span title="คนเก่าก่อเหตุซ้ำ" class="inline-flex items-center justify-center ${sizeCls} rounded-full bg-red-950 border border-red-900 text-white shadow-sm">
+                    <i class="fa-solid fa-circle-exclamation ${icoCls}"></i>
+                </span>`);
+            }
+
+            if (icons.length === 0) return '';
+            if (inline) return icons.join('');
+            return `<div class="flex items-center gap-1 mt-2">${icons.join('')}</div>`;
+        }
+
+        // เลือกไอคอนหลัก 1 อัน (ไว้แทนรูปวงกลมด้านหน้าชื่อ/คอลัมน์ภาพ)
+        function buildPrimarySpecialIconHtml(noteText = '', isRepeatOld = false, riskText = '') {
+            const t = (noteText || '').toString();
+            const has = (kw) => t.includes(kw);
+
+            // priority: ambulance > pills > skull > handcuffs > repeat(!)
+            let icon = null;
+            let title = '';
+            let base = 'bg-gray-100 border-gray-300 text-gray-700';
+
+            if (has('ส่งรักษาต่อ')) {
+                icon = 'fa-truck-medical'; title = 'ส่งรักษาต่อ';
+                base = 'bg-sky-50 border-sky-200 text-sky-600';
+            } else if (has('ดูแลอย่างใกล้ชิด') || has('ดูแลใกล้ชิด') || has('มีเจ้าหน้าที่ตำรวจ') || has('มีตำรวจ') || has('มีแพทย์')) {
+                icon = 'fa-pills'; title = 'ดูแลใกล้ชิด/มีทีมดูแล';
+                base = 'bg-emerald-50 border-emerald-200 text-emerald-500';
+            } else if (has('เสียชีวิต')) {
+                icon = 'fa-skull'; title = 'เสียชีวิต';
+                base = 'bg-gray-100 border-gray-300 text-gray-900';
+            } else if (has('ถูกจับกุม') || has('ดำเนินคดี') || has('จับกุม') || has('ฝากขัง')) {
+                icon = 'fa-handcuffs'; title = 'ถูกจับกุม/ดำเนินคดี';
+                base = 'bg-red-50 border-red-200 text-red-600';
+            } else if (isRepeatOld || has('ก่อเหตุซ้ำ') || has('ทำซ้ำ') || has('ซ้ำ')) {
+                icon = 'fa-circle-exclamation'; title = 'คนเก่าก่อเหตุซ้ำ';
+                base = 'bg-red-950 border-red-900 text-white';
+            } else {
+                icon = 'fa-user'; title = 'ข้อมูลผู้ป่วย';
+                base = 'bg-gray-50 border-gray-200 text-gray-500';
+            }
+
+            // เพิ่มโทนรอบนอกให้เข้ากับระดับความเสี่ยงเล็กน้อย (optional)
+            const risk = (riskText || '').toString();
+            let ring = '';
+            if (risk.includes('แดง') || risk.includes('สูง') || risk.includes('รุนแรง')) ring = 'ring-2 ring-red-200';
+            else if (risk.includes('ส้ม')) ring = 'ring-2 ring-orange-200';
+            else if (risk.includes('เหลือง') || risk.includes('กลาง') || risk.includes('เฝ้าระวัง')) ring = 'ring-2 ring-amber-200';
+            else if (risk.includes('เขียว') || risk.includes('ต่ำ') || risk.includes('ปกติ')) ring = 'ring-2 ring-green-200';
+            else if (risk.includes('รอประเมิน')) ring = 'ring-2 ring-sky-200';
+
+            return `<span title="${title}" class="inline-flex items-center justify-center w-10 h-10 rounded-full border ${base} ${ring} shadow-sm">
+                        <i class="fa-solid ${icon} text-[14px]"></i>
+                    </span>`;
+        }
+
+
+        async function fetchWithRetry(url) {
+            if (!url) return "";
+            
+            const urlObj = new URL(url);
+            urlObj.searchParams.set('t', Date.now());
+            const freshUrl = urlObj.toString();
+
+            const checkValidCSV = (text) => {
+                const lowerText = text.trim().toLowerCase();
+                if (lowerText.startsWith("<!doctype") || lowerText.startsWith("<html")) {
+                    throw new Error("ไฟล์ถูกบล็อกโดย Google (โปรดตรวจสอบการ 'เผยแพร่ไปยังเว็บ' ว่าตั้งเป็น 'เอกสารทั้งหมด' หรือยัง)");
+                }
+                return text;
+            };
+
+            try {
+                const response = await fetch(freshUrl, { cache: 'no-store' });
+                if (response.ok) {
+                    return checkValidCSV(await response.text());
+                } else {
+                    console.warn(`Direct fetch failed with status: ${response.status}`);
+                }
+            } catch (e) {
+                console.warn("Direct fetch failed, trying proxies...", e);
+            }
+
+            const proxies = [
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(freshUrl)}`,
+                `https://corsproxy.io/?${encodeURIComponent(freshUrl)}`,
+                `https://thingproxy.freeboard.io/fetch/${freshUrl}`
+            ];
+            
+            for (const proxyUrl of proxies) {
+                try {
+                    const response = await fetch(proxyUrl);
+                    if (response.ok) {
+                        return checkValidCSV(await response.text());
+                    }
+                } catch (e) { 
+                    console.warn(`Proxy failed: ${proxyUrl}`); 
+                }
+            }
+            throw new Error(`เครือข่ายบล็อกการเชื่อมต่อ หรือลิงก์ถูกปิดกั้น (กรุณาเช็คการแชร์ไฟล์ชีต)`);
+        }
+
+        async function fetchPsychSheet(isBackground = false) { 
+            let dbUrl = PRESET_PSYCH_DB_URL;
+            let rawUrl = PRESET_PSYCH_RAW_URL;
+
+            const loadingEl = document.getElementById('loadingOverlay');
+            const psychSyncIcon = document.getElementById('psychSyncIcon');
+
+            if(!isBackground) { 
+                if (loadingEl) loadingEl.classList.remove('hidden'); 
+                document.getElementById('loadingText').innerText = "กำลังประมวลผลเปรียบเทียบข้อมูล..."; 
+            } else {
+                if (psychSyncIcon) psychSyncIcon.classList.add('fa-spin');
+            }
+            
+            try {
+                const [dbResult, rawResult] = await Promise.allSettled([
+                    fetchWithRetry(dbUrl),
+                    fetchWithRetry(rawUrl)
+                ]);
+                
+                let csvDbText = "";
+                let csvRawText = "";
+                let errors = [];
+
+                if (dbResult.status === 'fulfilled') {
+                    csvDbText = dbResult.value;
+                } else {
+                    errors.push(`สารบบผู้ป่วยเก่า (${dbResult.reason.message})`);
+                }
+
+                if (rawResult.status === 'fulfilled') {
+                    csvRawText = rawResult.value;
+                } else {
+                    errors.push(`รับแจ้งเหตุ 191 (${rawResult.reason.message})`);
+                }
+
+                if (errors.length === 2) {
+                    throw new Error("ล้มเหลวทั้ง 2 ตาราง: <br>" + errors.join("<br>"));
+                }
+                
+                processPsychData(csvDbText, csvRawText);
+
+                if (errors.length > 0) {
+                    setTimeout(() => {
+                        const tbody = document.getElementById('psychTableBody');
+                        if (tbody && psychData.length > 0) {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `<td colspan="7" class="p-3 text-center text-amber-600 font-bold bg-amber-50 text-xs"><i class="fa-solid fa-triangle-exclamation mr-1"></i> ระบบดึงข้อมูลไม่สมบูรณ์: ขาด ${errors.join(', ')}</td>`;
+                            tbody.prepend(tr);
+                        } else if (tbody) {
+                            tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-amber-600 font-bold bg-amber-50"><i class="fa-solid fa-triangle-exclamation mr-2 text-xl"></i><br><br>ข้อมูลไม่สมบูรณ์<br><span class="text-sm font-normal mt-2 block">${errors.join(', ')}</span></td></tr>`;
+                        }
+                    }, 500);
+                }
+
+            } catch (error) {
+                console.error("Fetch Psych Error:", error);
+                const tbody = document.getElementById('psychTableBody');
+                if(tbody) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-red-500 font-bold bg-red-50"><i class="fa-solid fa-triangle-exclamation mr-2 text-xl"></i><br><br>เชื่อมต่อฐานข้อมูลล้มเหลว!<br><span class="text-sm font-normal mt-2 block">${error.message}</span></td></tr>`;
+                }
+                if(!isBackground) alert("ดึงข้อมูลไม่สำเร็จ โปรดตรวจสอบข้อความแสดงข้อผิดพลาดในตาราง");
+            } finally { 
+                if(!isBackground && loadingEl) loadingEl.classList.add('hidden'); 
+                if(isBackground && psychSyncIcon) psychSyncIcon.classList.remove('fa-spin');
+            }
+        }
+        
+        function processPsychData(csvDbText, csvRawText) {
+            let groupedMap = {};
+            let nameToKeyMap = {}; 
+
+            function getExactCol(row, colName) {
+                if (!row) return '';
+                const keys = Object.keys(row);
+                // ดึงค่าโดยจับคู่แบบตรงเป๊ะกับคอลัมน์ (ลบช่องว่างหัวและท้าย)
+                let exactKey = keys.find(k => k.trim() === colName.trim());
+                return exactKey && row[exactKey] ? row[exactKey].toString().trim() : '';
+            }
+
+            // ----------------------------------------------------
+            // ขั้นตอนที่ 1: อ่าน RAW (Raw_Data_Link) ตั้งเป็นแกนหลักก่อน (รายใหม่ทั้งหมด)
+            // ----------------------------------------------------
+            if (csvRawText && csvRawText.trim() !== '') {
+                const rawResults = Papa.parse(csvRawText, { header: true, skipEmptyLines: true });
+                rawResults.data.forEach(row => {
+                    let rawName = getExactCol(row, 'ชื่อ - สกุล ผู้ก่อเหตุ');
+                    if (!rawName || rawName === 'ไม่ระบุ' || rawName === '-') return;
+                    
+                    let cleanName = normalizeName(rawName);
+                    if (!cleanName) return;
+
+                    let rawId = getExactCol(row, 'เลขประจำตัวประชาชนผู้ก่อเหตุ').replace(/[^0-9]/g, '');
+                    let isDummyId = rawId === '' || rawId.length < 13 || /^0+$/.test(rawId);
+                    
+                    let primaryKey = isDummyId ? cleanName : rawId;
+
+                    let incidentDetail = getExactCol(row, 'พฤติการณ์การก่อเหตุ');
+                    let policeTeam = getExactCol(row, 'ทีมระงับเหตุ (เจ้าหน้าที่ตำรวจ)');
+                    let supportTeam = getExactCol(row, 'ทีมพิทักษ์ (หน่วยงานสนับสนุน)');
+                    let actionResult = getExactCol(row, 'ผลการดำเนินการ (ส่งต่อ)');
+                    let note = getExactCol(row, 'หมายเหตุ');
+                    
+                    let historyStr = incidentDetail;
+                    if(policeTeam) historyStr += `\n[ทีมระงับเหตุ]: ${policeTeam}`;
+                    if(supportTeam) historyStr += `\n[หน่วยสนับสนุน]: ${supportTeam}`;
+                    if(actionResult) historyStr += `\n[ผลดำเนินการ]: ${actionResult}`;
+                    if(note) historyStr += `\n[หมายเหตุ]: ${note}`;
+
+                    let m = getExactCol(row, 'ชื่อหมู่บ้าน');
+                    let t = getExactCol(row, 'ตำบล');
+                    let a = getExactCol(row, 'อำเภอ');
+                    let j = getExactCol(row, 'จังหวัด');
+                    let addrArr = [];
+                    if(m && m !== '-') addrArr.push(m);
+                    if(t && t !== '-') addrArr.push(`ต.${t}`);
+                    if(a && a !== '-') addrArr.push(`อ.${a}`);
+                    if(j && j !== '-') addrArr.push(`จ.${j}`);
+                    let fullAddr = addrArr.length > 0 ? addrArr.join(' ') : 'ไม่ระบุ';
+
+                    let risk = getExactCol(row, 'ระดับการเฝ้าระวัง') || 'รอประเมิน';
+                    let phone = getExactCol(row, 'เบอร์โทรศัพท์') || '-';
+                    
+                    // ดึงภาพถ่ายจากชีต (1 เหตุ = 1 รูป: ใช้รูปแรกเท่านั้น)
+                    let firstImg = getExactCol(row, 'หลักฐานและภาพถ่าย');
+                    let incidentPhoto = firstImg ? firstImg.split(',')[0].trim() : '';
+                    let incidentDate = getExactCol(row, 'วันที่เกิดเหตุ') || '';
+                    let incidentNote = note || actionResult || '';
+
+                    if (groupedMap[primaryKey]) {
+                        // ก่อเหตุซ้ำในตาราง RAW เอง (ใน 191 มีชื่อคนนี้แจ้งเข้ามาหลายรอบ)
+                        groupedMap[primaryKey].incidents += 1;
+                        groupedMap[primaryKey].lastIncidentDate = incidentDate || groupedMap[primaryKey].lastIncidentDate;
+                        // เก็บรูป/หมายเหตุแบบ 1 เหตุ = 1 รูป
+                        if (!Array.isArray(groupedMap[primaryKey].incidentPhotos)) groupedMap[primaryKey].incidentPhotos = [];
+                        if (!Array.isArray(groupedMap[primaryKey].incidentDates)) groupedMap[primaryKey].incidentDates = [];
+                        if (!Array.isArray(groupedMap[primaryKey].incidentNotes)) groupedMap[primaryKey].incidentNotes = [];
+                        groupedMap[primaryKey].incidentPhotos.push(incidentPhoto);
+                        groupedMap[primaryKey].incidentDates.push(incidentDate);
+                        groupedMap[primaryKey].incidentNotes.push(incidentNote);
+                        groupedMap[primaryKey].notesText = (groupedMap[primaryKey].notesText || '') + `\n${incidentNote}`;
+
+                        if(historyStr && !groupedMap[primaryKey].history.includes(incidentDetail.substring(0, 15))) {
+                            groupedMap[primaryKey].history = `[เกิดเหตุล่าสุด: ${incidentDate}]\n${historyStr}\n\n---\n` + groupedMap[primaryKey].history; 
+                        }
+                        if(firstImg && !groupedMap[primaryKey].image.includes(firstImg.split(',')[0])) {
+                            groupedMap[primaryKey].image = firstImg.split(',')[0] + (groupedMap[primaryKey].image ? "," + groupedMap[primaryKey].image : "");
+                        }
+                    } else {
+                        // สร้างประวัติใหม่ ตั้งต้นว่าเป็น รายใหม่ไปก่อน
+                        groupedMap[primaryKey] = {
+                            idCard: isDummyId ? '-' : rawId,
+                            name: rawName,
+                            cleanName: cleanName,
+                            address: fullAddr,
+                            risk: risk, 
+                            status: 'รายใหม่ (รอตรวจสอบ)',
+                            image: incidentPhoto || '',
+                            incidentPhotos: [incidentPhoto],
+                            incidentDates: [incidentDate],
+                            incidentNotes: [incidentNote],
+                            notesText: incidentNote || '',
+                            relative: '-', 
+                            phone: phone,
+                            history: incidentDate ? `[เกิดเหตุล่าสุด: ${incidentDate}]\n${historyStr}` : historyStr,
+                            incidents: 1,
+                            isNew: true, 
+                            lastIncidentDate: incidentDate
+                        };
+                        nameToKeyMap[cleanName] = primaryKey;
+                    }
+                });
+            }
+
+            // ----------------------------------------------------
+            // ขั้นตอนที่ 2: นำ DB (Database_Naka_Seka) มาเทียบ เพื่อลบป้ายรายใหม่ และเติมข้อมูลทางการ
+            // ----------------------------------------------------
+            if (csvDbText && csvDbText.trim() !== '') {
+                const dbResults = Papa.parse(csvDbText, { header: true, skipEmptyLines: true });
+                dbResults.data.forEach(row => {
+                    // ใช้ชื่อฟิลด์ตามที่ระบุมาเป๊ะๆ
+                    let rawName = getExactCol(row, 'ชื่อ - สกุล ผู้ก่อเหตุ');
+                    if (!rawName || rawName === 'ไม่ระบุ' || rawName === '-') return;
+                    
+                    let cleanName = normalizeName(rawName);
+                    if (!cleanName) return;
+
+                    let rawId = getExactCol(row, 'เลขประจำตัวประชาชนผู้ก่อเหตุ').replace(/[^0-9]/g, ''); 
+                    let isDummyId = rawId === '' || rawId.length < 13 || /^0+$/.test(rawId);
+                    
+                    // หาคีย์ว่าคนนี้ไปก่อเหตุ (อยู่ในตาราง RAW) หรือไม่ โดยเช็คจากเลขบัตรก่อน ตามด้วยชื่อ
+                    let targetKey = null;
+                    if (!isDummyId && groupedMap[rawId]) {
+                        targetKey = rawId; 
+                    } else if (nameToKeyMap[cleanName] && groupedMap[nameToKeyMap[cleanName]]) {
+                        targetKey = nameToKeyMap[cleanName]; 
+                    }
+
+                    let m = getExactCol(row, 'ชื่อหมู่บ้าน');
+                    let t = getExactCol(row, 'ตำบล');
+                    let a = getExactCol(row, 'อำเภอ');
+                    let j = getExactCol(row, 'จังหวัด');
+                    let addrArr = [];
+                    if(m && m !== '-') addrArr.push(m);
+                    if(t && t !== '-') addrArr.push(`ต.${t}`);
+                    if(a && a !== '-') addrArr.push(`อ.${a}`);
+                    if(j && j !== '-') addrArr.push(`จ.${j}`);
+                    let dbAddress = addrArr.length > 0 ? addrArr.join(' ') : 'ไม่ระบุ';
+
+                    let dbRisk = getExactCol(row, 'ระดับการเฝ้าระวัง');
+                    let dbNote = getExactCol(row, 'หมายเหตุ');
+                    let dbImgRaw = getExactCol(row, 'หลักฐานและภาพถ่าย'); 
+                    let dbImg = dbImgRaw ? dbImgRaw.split(',')[0].trim() : '';
+                    
+                    // ฟิลด์เพิ่มเติมที่อาจจะมีในฐานข้อมูล
+                    let dbRelative = getExactCol(row, 'ชื่อญาติ') || '-'; 
+                    let dbPhone = getExactCol(row, 'เบอร์โทรศัพท์') || '-';
+                    let dbStatus = getExactCol(row, 'สถานะปัจจุบัน') || 'ปกติ';
+
+                    if (targetKey) {
+                        // ปรากฏว่าคนใน RAW มีข้อมูลอยู่ใน DB = คนเก่าก่อเหตุซ้ำ!
+                        let p = groupedMap[targetKey];
+                        p.isNew = false; // ปลดป้ายรายใหม่ออก
+                        p.status = 'เฝ้าระวังพิเศษ (ก่อเหตุซ้ำ)';
+                        
+                        // เอาข้อมูลทางการจาก DB มาเขียนทับ หากมีข้อมูล (เพื่อให้ได้ข้อมูลพิกัดและความเสี่ยงที่เป็นทางการ)
+                        if (dbAddress && dbAddress !== 'ไม่ระบุ') p.address = dbAddress;
+                        if (dbRisk && dbRisk !== '') p.risk = dbRisk;
+                        if (dbRelative && dbRelative !== '-') p.relative = dbRelative;
+                        if (dbPhone && dbPhone !== '-' && p.phone === '-') p.phone = dbPhone;
+                        
+                        // ถ้ารูปใน Raw ไม่มี ให้ใช้รูปจาก DB แทน
+                        if (!p.image && dbImg) p.image = dbImg;
+                        
+                        // ถ้าสารบบมีเลขบัตร ให้เอาเลขบัตรไปทับ (กรณีฝั่ง 191 ใส่เลข 0 มา)
+                        if (!isDummyId && p.idCard === '-') p.idCard = rawId;
+
+                        // เอาหมายเหตุ/ประวัติในสารบบเก่า ไปต่อท้ายประวัติเหตุการณ์ใหม่
+                        if (dbNote && dbNote !== '-') {
+                            p.history += `\n\n[ประวัติเดิมในสารบบ]:\n${dbNote}`;
+                        }
+                    } else {
+                        // ไม่เจอใน RAW -> เป็นเป้าหมายปกติที่ไม่มีการก่อเหตุใหม่
+                        let newKey = isDummyId ? cleanName : rawId;
+                        groupedMap[newKey] = {
+                            idCard: isDummyId ? '-' : rawId,
+                            name: rawName,
+                            cleanName: cleanName,
+                            address: dbAddress,
+                            risk: dbRisk || 'ไม่ระบุ',
+                            status: dbStatus,
+                            image: dbImg,
+                            relative: dbRelative,
+                            phone: dbPhone,
+                            history: dbNote || '-',
+                            incidents: 0, 
+                            isNew: false, 
+                            lastIncidentDate: ''
+                        };
+                        nameToKeyMap[cleanName] = newKey;
+                    }
+                });
+            }
+
+            psychData = Object.values(groupedMap);
+            renderPsychDashboard();
+        }
+
+        // ฟังก์ชันสลับ Tab หน้าผู้ป่วย
+        function setPsychTab(tabId) {
+            currentPsychTab = tabId;
+            currentPsychPage = 1; // เมื่อเปลี่ยน Tab ให้กลับไปหน้า 1 เสมอ
+            
+            ['all', 'old', 'new', 'repeat'].forEach(id => {
+                const btn = document.getElementById(`tab-psych-${id}`);
+                if(btn) {
+                    if(id === tabId) {
+                        btn.classList.add('bg-white', 'text-indigo-700', 'shadow-sm', 'border-gray-200');
+                        btn.classList.remove('text-gray-600', 'hover:bg-gray-200', 'border-transparent');
+                        
+                        if(id === 'new') btn.className = 'px-4 py-2 rounded-xl text-sm font-bold bg-blue-600 text-white shadow-sm whitespace-nowrap transition-all flex items-center gap-2';
+                        else if(id === 'repeat') btn.className = 'px-4 py-2 rounded-xl text-sm font-bold bg-red-600 text-white shadow-sm whitespace-nowrap transition-all flex items-center gap-2';
+                        else btn.className = 'px-4 py-2 rounded-xl text-sm font-bold bg-white text-indigo-700 shadow-sm border border-gray-200 whitespace-nowrap transition-all flex items-center gap-2';
+                    } else {
+                        if(id === 'new') btn.className = 'px-4 py-2 rounded-xl text-sm font-medium text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-100 whitespace-nowrap transition-all flex items-center gap-2';
+                        else if(id === 'repeat') btn.className = 'px-4 py-2 rounded-xl text-sm font-medium text-red-600 bg-red-50 border border-red-100 hover:bg-red-100 whitespace-nowrap transition-all flex items-center gap-2';
+                        else btn.className = 'px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-200 hover:text-gray-800 border border-transparent whitespace-nowrap transition-all flex items-center gap-2';
+                    }
+                }
+            });
+            renderPsychTable();
+        }
+
+        function setPsychRiskFilter(val) {
+            const riskSelect = document.getElementById('psychRiskFilter');
+            if (riskSelect) {
+                riskSelect.value = val;
+                setPsychTab('all'); 
+            }
+        }
+        
+        function renderPsychDashboard() {
+            document.getElementById('psychTotal').innerText = psychData.length;
+            document.getElementById('psychHigh').innerText = psychData.filter(p => p.risk.includes('แดง') || p.risk.includes('สูง') || p.risk.includes('รุนแรง')).length;
+            document.getElementById('psychMed').innerText = psychData.filter(p => p.risk.includes('เหลือง') || p.risk.includes('กลาง') || p.risk.includes('เฝ้าระวัง')).length;
+            document.getElementById('psychLow').innerText = psychData.filter(p => p.risk.includes('เขียว') || p.risk.includes('ต่ำ') || p.risk.includes('ปกติ')).length;
+            
+            const countNew = psychData.filter(p => p.isNew).length;
+            const countRepeat = psychData.filter(p => !p.isNew && p.incidents > 0).length;
+            
+            document.getElementById('statPsychNew').innerText = countNew;
+            document.getElementById('statPsychRepeat').innerText = countRepeat;
+
+            document.getElementById('count-tab-all').innerText = psychData.length;
+            document.getElementById('count-tab-old').innerText = psychData.filter(p => !p.isNew).length;
+            document.getElementById('count-tab-new').innerText = countNew;
+            document.getElementById('count-tab-repeat').innerText = countRepeat;
+
+            renderPsychTable();
+        }
+        
+        function renderPsychTable(page = currentPsychPage) {
+            const tbody = document.getElementById('psychTableBody');
+            const search = document.getElementById('psychSearch').value.toLowerCase();
+            const riskFilter = document.getElementById('psychRiskFilter').value;
+            
+            let filtered = psychData.filter(p => {
+                if(currentPsychTab === 'old') return !p.isNew;
+                if(currentPsychTab === 'new') return p.isNew;
+                if(currentPsychTab === 'repeat') return !p.isNew && p.incidents > 0;
+                return true; 
+            });
+
+            filtered = filtered.filter(p => 
+                p.name.toLowerCase().includes(search) || 
+                p.address.toLowerCase().includes(search) ||
+                p.relative.toLowerCase().includes(search) ||
+                p.idCard.includes(search)
+            );
+
+            if(riskFilter !== 'all') {
+                filtered = filtered.filter(p => p.risk.includes(riskFilter));
+            }
+
+            filtered.sort((a, b) => {
+                if (currentPsychTab === 'repeat') {
+                    return b.incidents - a.incidents;
+                }
+                if (currentPsychTab === 'new') {
+                    return b.incidents - a.incidents;
+                }
+                const score = (r) => r.includes('แดง') ? 4 : r.includes('เหลือง') ? 3 : r.includes('เขียว') ? 2 : r.includes('ประเมิน') ? 1 : 0;
+                if(score(b.risk) !== score(a.risk)) return score(b.risk) - score(a.risk);
+                return b.incidents - a.incidents;
+            });
+            
+            const totalItems = filtered.length;
+            const totalPages = Math.ceil(totalItems / psychRowsPerPage);
+            
+            if (page < 1) page = 1;
+            if (page > totalPages && totalPages > 0) page = totalPages;
+            currentPsychPage = page;
+
+            tbody.innerHTML = '';
+            
+            if(totalItems === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>`;
+                const infoEl = document.getElementById('psychTableInfo');
+                if (infoEl) infoEl.innerText = `แสดง 0-0 จาก 0 รายการ`;
+                
+                const prevBtn = document.getElementById('prevPsychPage');
+                if (prevBtn) prevBtn.disabled = true;
+                const nextBtn = document.getElementById('nextPsychPage');
+                if (nextBtn) nextBtn.disabled = true;
+                return;
+            }
+
+            const pagedData = filtered.slice((currentPsychPage - 1) * psychRowsPerPage, currentPsychPage * psychRowsPerPage);
+
+            pagedData.forEach((p) => {
+                let riskClass = 'bg-gray-100 text-gray-600 border-gray-200';
+                let riskIcon = 'fa-user';
+                let btnClass = 'text-white bg-gray-400 hover:bg-gray-500 shadow-sm';
+                let namePillClass = 'bg-gray-50 text-gray-800 border-gray-200';
+                
+                if(p.risk.includes('แดง') || p.risk.includes('สูง') || p.risk.includes('รุนแรง')) {
+                    riskClass = 'bg-red-100 text-red-700 border-red-200';
+                    riskIcon = 'fa-triangle-exclamation text-red-500';
+                    btnClass = (!p.isNew && p.incidents > 0) ? 'text-white bg-red-950 hover:bg-red-900 shadow-md shadow-red-200' : 'text-white bg-red-600 hover:bg-red-700 shadow-md shadow-red-200';
+                    namePillClass = 'bg-red-50 text-red-800 border-red-200';
+                } else if(p.risk.includes('ส้ม')) {
+                    riskClass = 'bg-orange-100 text-orange-700 border-orange-200';
+                    riskIcon = 'fa-triangle-exclamation text-orange-500';
+                    btnClass = 'text-white bg-orange-500 hover:bg-orange-600 shadow-md shadow-orange-200';
+                    namePillClass = 'bg-orange-50 text-orange-800 border-orange-200';
+                } else if(p.risk.includes('เหลือง') || p.risk.includes('กลาง') || p.risk.includes('เฝ้าระวัง')) {
+                    riskClass = 'bg-amber-100 text-amber-700 border-amber-200';
+                    riskIcon = 'fa-eye text-amber-500';
+                    btnClass = 'text-amber-950 bg-amber-300 hover:bg-amber-400 shadow-md shadow-amber-200';
+                    namePillClass = 'bg-amber-50 text-amber-900 border-amber-200';
+                } else if(p.risk.includes('เขียว') || p.risk.includes('ต่ำ') || p.risk.includes('ปกติ')) {
+                    riskClass = 'bg-green-100 text-green-700 border-green-200';
+                    riskIcon = 'fa-check-circle text-green-500';
+                    btnClass = 'text-white bg-green-500 hover:bg-green-600 shadow-md shadow-green-200';
+                    namePillClass = 'bg-green-50 text-green-800 border-green-200';
+                } else if(p.isNew || p.risk.includes('รอประเมิน')) {
+                    riskClass = 'bg-sky-100 text-sky-700 border-sky-200';
+                    riskIcon = 'fa-user-clock text-sky-500';
+                    btnClass = 'text-white bg-sky-500 hover:bg-sky-600 shadow-md shadow-sky-200';
+                    namePillClass = 'bg-sky-50 text-sky-800 border-sky-200';
+                }
+                
+                const incidentPhotos = Array.isArray(p.incidentPhotos) ? p.incidentPhotos : [];
+                const photoCandidates = incidentPhotos.map(u => (u || '').toString().trim()).filter(u => u !== '').slice().reverse();
+                let photosToShow = photoCandidates.slice(0, 3);
+                if (photosToShow.length === 0 && p.image && p.image.trim() !== '') photosToShow = [p.image.split(',')[0].trim()];
+
+                let imgHtml = `<div class="w-12 h-12 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center shadow-inner"><i class="fa-solid ${riskIcon} text-xl opacity-50"></i></div>`;
+                if (photosToShow.length === 1) {
+                    const displayUrl = toDriveThumbnail(photosToShow[0], 'w150');
+                    imgHtml = `<img src="${displayUrl}" class="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm ring-1 ring-gray-200" onerror="this.outerHTML='${`<div class=\\\'w-12 h-12 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center\\\'><i class=\\\'fa-solid ${riskIcon} opacity-50\\\'></i></div>`}'">`;
+                } else if (photosToShow.length > 1) {
+                    const thumbs = photosToShow.map((u, i) => {
+                        const left = i * 14;
+                        const z = 10 - i;
+                        const du = toDriveThumbnail(u, 'w150');
+                        return `<img src="${du}" class="absolute top-0 w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm ring-1 ring-gray-200" style="left:${left}px; z-index:${z}" onerror="this.style.display='none'">`;
+                    }).join('');
+                    imgHtml = `<div class="relative w-16 h-10 mx-auto">${thumbs}</div>`;
+                }
+
+                const isRepeatOld = (!p.isNew && p.incidents > 0);
+                // (v6) ไม่แสดงไอคอนเล็กหน้าชื่อ (ใช้ไอคอนหลักตัวใหญ่แทน)
+                const specialIconHtmlInline = "";
+                const primaryIconHtml = buildPrimarySpecialIconHtml((p.notesText || p.history || ''), isRepeatOld, p.risk || '');
+                // ไม่แสดงรูปเหตุการณ์ในตารางหลัก (แสดงในแฟ้มประวัติแทน)
+
+                const realIndex = psychData.indexOf(p); 
+                
+                let typeBadge = '';
+                if (p.isNew) typeBadge = `<span class="text-[10px] bg-sky-600 text-white px-2 py-0.5 rounded ml-2 shadow-sm whitespace-nowrap">รายใหม่</span>`;
+                else if (!p.isNew && p.incidents > 0) typeBadge = `<span class="text-[10px] bg-red-900 text-white px-2 py-0.5 rounded ml-2 shadow-sm whitespace-nowrap">คนเก่าก่อเหตุซ้ำ</span>`;
+                else if (p.incidents > 0) typeBadge = `<span class="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded ml-2 shadow-sm whitespace-nowrap">ก่อเหตุซ้ำ</span>`;
+
+                let incidentBadge = p.incidents > 0 
+                    ? `<div class="font-bold text-red-600 bg-red-50 px-2 py-1 rounded-md text-xs border border-red-100 inline-block mb-1">${p.incidents} ครั้งล่าสุด</div>` 
+                    : `<div class="font-medium text-gray-500 bg-gray-50 px-2 py-1 rounded-md text-xs border border-gray-200 inline-block">ไม่มีใหม่</div>`;
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-50 transition-colors border-b border-gray-100 group cursor-pointer" onclick="openPsychModal(${realIndex})">
+                        <td class="p-4 text-center">${primaryIconHtml}</td>
+                        <td class="p-4">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="font-bold text-gray-800 text-base leading-tight px-2 py-1 rounded-lg border ${namePillClass}">${p.name}</span>
+                                ${typeBadge}
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1"><i class="fa-solid fa-id-card mr-1"></i> ${p.idCard}</div>
+                        </td>
+                        <td class="p-4 text-gray-600 text-sm w-48"><div class="line-clamp-2" title="${p.address}">${p.address}</div></td>
+                        <td class="p-4 text-center">
+                            <span class="px-3 py-1.5 rounded-full text-xs font-bold border ${riskClass} shadow-sm inline-flex items-center gap-1">
+                                <i class="fa-solid ${riskIcon} text-[10px]"></i> ${p.risk}
+                            </span>
+                        </td>
+                        <td class="p-4 text-center">
+                            ${incidentBadge}
+                            ${p.lastIncidentDate ? `<div class="text-[10px] text-gray-400 mt-1"><i class="fa-solid fa-clock-rotate-left mr-1"></i> ${p.lastIncidentDate}</div>` : ''}
+                        </td>
+                        <td class="p-4 text-center text-gray-700 text-sm font-medium"><span class="line-clamp-2">${p.status}</span></td>
+                        <td class="p-4 text-center">
+                            <button onclick="event.stopPropagation(); openPsychModal(${realIndex})" class="${btnClass} relative px-3 py-2 rounded-xl transition shadow-sm group-hover:scale-110">
+                                <i class="fa-solid fa-folder text-lg"></i>
+                                ${(!p.isNew && p.incidents > 0) ? '<span class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white/90 text-red-900 flex items-center justify-center shadow"><i class="fa-solid fa-circle-exclamation text-[12px]"></i></span>' : ''}
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            const infoEl = document.getElementById('psychTableInfo');
+            if (infoEl) {
+                const startItem = (currentPsychPage - 1) * psychRowsPerPage + 1;
+                const endItem = Math.min(currentPsychPage * psychRowsPerPage, totalItems);
+                infoEl.innerText = `แสดง ${startItem}-${endItem} จาก ${totalItems} รายการ`;
+            }
+
+            const prevBtn = document.getElementById('prevPsychPage');
+            if (prevBtn) prevBtn.disabled = currentPsychPage === 1;
+
+            const nextBtn = document.getElementById('nextPsychPage');
+            if (nextBtn) nextBtn.disabled = currentPsychPage === totalPages || totalPages === 0;
+        }
+
+        function isPsychViewActive() {
+            const v = document.getElementById('view-psych');
+            return !!(v && !v.classList.contains('hidden'));
+        }
+
+        function openPsychModal(index) {
+            // Guard: Do not allow Psych folder popup outside Psych module
+            if (!isPsychViewActive()) {
+                try { closePsychModal(); } catch(e) {}
+                return;
+            }
+const p = psychData[index];
+            if(!p) return;
+            const content = document.getElementById('psychDetailContent');
+
+            // แจ้งเตือนกรณี "ผู้ป่วยรายใหม่"
+            const newCaseAlert = (p.isNew)
+                ? `<div class="p-4 rounded-xl border border-sky-200 bg-sky-50 text-sky-900 text-sm flex items-start gap-3">
+                        <div class="shrink-0 w-9 h-9 rounded-full bg-sky-600 text-white flex items-center justify-center shadow-sm">
+                            <i class="fa-solid fa-circle-info"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold">ผู้ป่วยรายใหม่</div>
+                            <div class="text-sky-800/90">ข้อมูลรายการนี้ถูกจัดอยู่ในกลุ่ม “รายใหม่ (รอเข้าระบบ)”</div>
+                        </div>
+                   </div>`
+                : '';
+
+            // ล็อกสกรอลล์พื้นหลังเมื่อเปิดป็อบอัพ
+            document.body.style.overflow = 'hidden';
+            
+            let riskBadgeClass = 'bg-gray-100 text-gray-700 border-gray-300';
+            
+            const psychModalHead = document.getElementById('psychModalHead');
+            const psychModalTitle = document.getElementById('psychModalTitle');
+            const psychModalIcon = document.getElementById('psychModalIcon');
+            const psychModalClose = document.getElementById('psychModalClose');
+            
+            let headerBg = 'bg-gray-50';
+            let titleColor = 'text-gray-800';
+            let iconColor = 'text-gray-600';
+            let closeColor = 'text-gray-400 hover:text-gray-600';
+
+            if(p.risk.includes('แดง') || p.risk.includes('สูง') || p.risk.includes('รุนแรง')) {
+                riskBadgeClass = 'bg-red-100 text-red-800 border-red-300';
+                headerBg = 'bg-red-500'; titleColor = 'text-white'; iconColor = 'text-red-100'; closeColor = 'text-red-200 hover:text-white';
+            }
+            else if(p.risk.includes('ส้ม')) {
+                riskBadgeClass = 'bg-orange-100 text-orange-900 border-orange-300';
+                headerBg = 'bg-orange-500'; titleColor = 'text-white'; iconColor = 'text-orange-100'; closeColor = 'text-orange-200 hover:text-white';
+            }
+            else if(p.risk.includes('เหลือง') || p.risk.includes('กลาง') || p.risk.includes('เฝ้าระวัง')) {
+                riskBadgeClass = 'bg-amber-100 text-amber-800 border-amber-300';
+                headerBg = 'bg-amber-400'; titleColor = 'text-amber-900'; iconColor = 'text-amber-700'; closeColor = 'text-amber-700 hover:text-amber-900';
+            }
+            else if(p.risk.includes('เขียว') || p.risk.includes('ต่ำ') || p.risk.includes('ปกติ')) {
+                riskBadgeClass = 'bg-green-100 text-green-800 border-green-300';
+                headerBg = 'bg-green-500'; titleColor = 'text-white'; iconColor = 'text-green-100'; closeColor = 'text-green-200 hover:text-white';
+            }
+            else if(p.isNew || p.risk.includes('รอประเมิน')) {
+                riskBadgeClass = 'bg-sky-100 text-sky-900 border-sky-300';
+                headerBg = 'bg-sky-600'; titleColor = 'text-white'; iconColor = 'text-sky-100'; closeColor = 'text-sky-200 hover:text-white';
+            }
+            
+            if (!p.isNew && p.incidents > 0) { headerBg = 'bg-red-950'; titleColor = 'text-white'; iconColor = 'text-red-100'; closeColor = 'text-red-200 hover:text-white'; }
+            if (psychModalHead) psychModalHead.className = `p-5 border-b border-gray-200 flex justify-between items-center rounded-t-2xl transition-colors ${headerBg}`;
+            if (psychModalTitle) psychModalTitle.className = `font-bold text-lg flex items-center gap-2 transition-colors ${titleColor}`;
+            if (psychModalIcon) psychModalIcon.className = `fa-solid fa-folder-open transition-colors ${iconColor}`;
+            if (psychModalClose) psychModalClose.className = `transition text-2xl ${closeColor}`;
+
+            let allImagesHtml = `<p class="text-sm text-gray-400 italic bg-gray-50 p-4 rounded-lg text-center border border-dashed border-gray-200">ไม่มีรูปถ่ายประกอบเหตุการณ์</p>`;
+
+            // 1 เหตุ = 1 รูป: แสดงตามลำดับเหตุการณ์ (ถ้ามี)
+            if (Array.isArray(p.incidentPhotos) && p.incidentPhotos.length > 0) {
+                const items = p.incidentPhotos.map((u, idx) => {
+                    const url = (u || '').toString().trim();
+                    const date = (Array.isArray(p.incidentDates) ? (p.incidentDates[idx] || '') : '');
+                    const note = (Array.isArray(p.incidentNotes) ? (p.incidentNotes[idx] || '') : '');
+                    const icons = buildSpecialIconHtml(note, (!p.isNew && p.incidents > 0));
+                    const thumb = url ? toDriveThumbnail(url, 'w400') : '';
+                    const img = thumb ? `<img src="${thumb}" class="w-full h-44 object-cover rounded-xl border border-gray-200 shadow-sm" onerror="this.outerHTML='<div class=\'w-full h-44 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400\'><i class=\'fa-solid fa-image\'></i></div>'">`
+                                      : `<div class="w-full h-44 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400"><i class="fa-solid fa-image"></i></div>`;
+                    return `<div class="bg-white rounded-2xl border border-gray-200 p-3 shadow-sm">
+                                <div class="flex items-start justify-between gap-3 mb-2">
+                                    <div>
+                                        <div class="text-xs text-gray-500"><i class="fa-solid fa-calendar-day mr-1"></i>${date || '-'}</div>
+                                        <div class="text-sm font-semibold text-gray-800 mt-0.5">${note ? note : '—'}</div>
+                                    </div>
+                                    <div class="shrink-0">${icons}</div>
+                                </div>
+                                ${img}
+                            </div>`;
+                }).filter(Boolean).join('');
+
+                const any = items && items.trim() !== '';
+                if (any) {
+                    allImagesHtml = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">${items}</div>`;
+                }
+            } else if (p.image && p.image.trim() !== '') {
+                // Fallback: กรณีข้อมูลเก่ามี image เดิม
+                const rawImages = p.image.split(',');
+                const validImages = rawImages.map(url => url.trim()).filter(url => url !== '');
+                if (validImages.length > 0) {
+                    const imgsHtml = validImages.map(url => {
+                        const displayUrl = toDriveThumbnail(url, 'w400');
+                        return `<a href="${url}" target="_blank" class="block group">
+                                    <img src="${displayUrl}" class="w-full h-40 object-cover rounded-lg border border-gray-200 shadow-sm group-hover:opacity-90 transition" onerror="this.outerHTML='<div class=\'w-full h-40 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400\'><i class=\'fa-solid fa-image\'></i></div>'">
+                                </a>`;
+                    }).join('');
+                    allImagesHtml = `<div class="grid grid-cols-2 md:grid-cols-3 gap-3">${imgsHtml}</div>`;
+                }
+            }
+content.innerHTML = `
+                <div class="space-y-5">
+                    ${newCaseAlert}
+                    
+                    <div class="bg-gray-50/50 p-5 rounded-xl border border-gray-200 shadow-sm">
+                        <h4 class="font-bold text-gray-800 mb-4 border-b border-gray-200 pb-2"><i class="fa-solid fa-id-card mr-2 text-indigo-500"></i>ข้อมูลส่วนบุคคล</h4>
+                        <div class="space-y-4 text-sm">
+                            <div class="flex items-center mb-2">
+                                <span class="font-semibold text-gray-600 w-32 shrink-0">ระดับความเสี่ยง:</span> 
+                                <span class="px-4 py-1.5 rounded-full text-xs font-bold border ${riskBadgeClass} shadow-sm inline-flex items-center gap-1">${p.risk}</span>
+                            </div>
+                            <div class="flex"><span class="font-semibold text-gray-600 w-32 shrink-0">ชื่อ-นามสกุล:</span> <span class="font-bold text-gray-900 text-base">${p.name}</span></div>
+                            <div class="flex"><span class="font-semibold text-gray-600 w-32 shrink-0">เลขประจำตัว ปชช.:</span> <span class="text-gray-800">${p.idCard}</span></div>
+                            <div class="flex"><span class="font-semibold text-gray-600 w-32 shrink-0">สถานะปัจจุบัน:</span> <span class="text-indigo-700 font-medium">${p.status}</span></div>
+                            <div class="flex"><span class="font-semibold text-gray-600 w-32 shrink-0">ที่อยู่/พิกัด:</span> <span class="text-gray-700">${p.address}</span></div>
+                            <div class="flex items-center"><span class="font-semibold text-gray-600 w-32 shrink-0">จำนวนครั้งก่อเหตุ(ใหม่):</span> <span class="font-bold ${p.incidents > 0 ? 'text-red-600 bg-red-50 border-red-100' : 'text-gray-500 bg-gray-50 border-gray-200'} border px-3 py-1 rounded-md shadow-sm">${p.incidents} ครั้ง</span></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50/50 p-5 rounded-xl border border-gray-200 shadow-sm">
+                        <h4 class="font-bold text-gray-800 mb-3 border-b border-gray-200 pb-2"><i class="fa-solid fa-people-roof mr-2 text-amber-500"></i>ข้อมูลผู้ดูแล/ญาติ</h4>
+                        <div class="space-y-3 text-sm">
+                            <div class="flex"><span class="font-semibold text-gray-600 w-32 shrink-0">ชื่อผู้ดูแล:</span> <span class="text-gray-800">${p.relative}</span></div>
+                            <div class="flex"><span class="font-semibold text-gray-600 w-32 shrink-0">เบอร์โทรติดต่อ:</span> <a href="tel:${p.phone}" class="text-blue-600 font-medium hover:underline"><i class="fa-solid fa-phone mr-1"></i>${p.phone}</a></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 p-5 rounded-xl border border-gray-200 shadow-sm">
+                        <h4 class="font-bold text-gray-700 mb-3 border-b border-gray-200 pb-2"><i class="fa-solid fa-file-medical text-red-500 mr-2"></i>ประวัติ/พฤติการณ์ (รวมทั้งเก่าและใหม่)</h4>
+                        <div class="bg-white p-4 rounded-lg border border-gray-200 text-gray-700 text-sm leading-relaxed whitespace-pre-wrap mb-5">${p.history}</div>
+                        
+                        <h4 class="font-bold text-gray-700 mb-3 border-b border-gray-200 pb-2"><i class="fa-solid fa-camera mr-2 text-gray-500"></i>รูปถ่ายประกอบเหตุการณ์</h4>
+                        ${allImagesHtml}
+                    </div>
+
+                </div>
+            `;
+            
+            document.getElementById('psychDetailModal').classList.remove('hidden');
+        }
+
+        function closePsychModal() {
+            const modal = document.getElementById('psychDetailModal');
+            if (modal) modal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        
+        // ปิด Pop-up เมื่อคลิกพื้นหลังทึบ
+        document.addEventListener('click', (e) => {
+            const modal = document.getElementById('psychDetailModal');
+            if (!modal || modal.classList.contains('hidden')) return;
+            if (e.target === modal) closePsychModal();
+        });
+// --- View Switcher ---
+        function switchView(viewName) {
+            // vFix: prevent Psych folder modal from appearing in other modules
+            try { closePsychModal(); } catch(e) {}
+            try { closeDetailModal(); } catch(e) {}
+            ['view-overview', 'view-list', 'view-psych'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            ['nav-overview', 'nav-list', 'nav-psych'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) { el.classList.remove('active'); el.classList.add('inactive'); }
+            });
+            document.getElementById(`view-${viewName}`).classList.remove('hidden');
+            const nav = document.getElementById(`nav-${viewName}`);
+            if(nav) { nav.classList.add('active'); nav.classList.remove('inactive'); }
+            
+            const mainSync = document.getElementById('mainSyncControls');
+            const psychSync = document.getElementById('psychSyncControls');
+            
+            if(viewName === 'psych') {
+                document.getElementById('pageTitle').innerText = "ข้อมูลบุคคลเฝ้าระวัง/คลุ้มคลั่ง";
+                if(mainSync) mainSync.classList.add('hidden');
+                if(psychSync) psychSync.classList.remove('hidden');
+                if(psychSync) psychSync.classList.add('flex');
+            } else {
+                document.getElementById('pageTitle').innerText = viewName === 'overview' ? "ภาพรวมสถานการณ์" : "รายการแจ้งเหตุทั้งหมด";
+                if(mainSync) mainSync.classList.remove('hidden');
+                if(psychSync) psychSync.classList.add('hidden');
+                if(psychSync) psychSync.classList.remove('flex');
+                if(viewName === 'list') renderTable(1);
+            }
+        }
+    
+
+// === v42: Keep charts responsive on rotate/resize ===
+let __resizeTimer = null;
+function __resizeCharts() {
+  try {
+    if (!window.charts) return;
+    Object.keys(charts).forEach((k) => {
+      const c = charts[k];
+      if (c && typeof c.resize === 'function') c.resize();
+    });
+  } catch (e) { /* noop */ }
+}
+function __scheduleResizeCharts() {
+  if (__resizeTimer) clearTimeout(__resizeTimer);
+  __resizeTimer = setTimeout(__resizeCharts, 160);
+}
+window.addEventListener('resize', __scheduleResizeCharts, { passive: true });
+window.addEventListener('orientationchange', __scheduleResizeCharts, { passive: true });
+
+
+
+// === v43: Mobile hamburger -> toggle sidebar ===
+(function(){
+  const btn = document.getElementById('mobileMenuBtn');
+  const overlay = document.getElementById('mobileMenuOverlay');
+  const sidebar = document.querySelector('aside.sidebar-gradient');
+
+  if (!btn || !sidebar || !overlay) return;
+
+  function openSidebar(){
+    sidebar.classList.remove('hidden');
+    sidebar.classList.add('flex');
+    overlay.classList.remove('hidden');
+    document.documentElement.style.overflow = 'hidden';
+  }
+  function closeSidebar(){
+    sidebar.classList.add('hidden');
+    sidebar.classList.remove('flex');
+    overlay.classList.add('hidden');
+    document.documentElement.style.overflow = '';
+  }
+  function toggleSidebar(){
+    const isHidden = sidebar.classList.contains('hidden');
+    if (isHidden) openSidebar(); else closeSidebar();
+  }
+
+  btn.addEventListener('click', function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    toggleSidebar();
+  });
+
+  overlay.addEventListener('click', function(){
+    closeSidebar();
+  });
+
+  // Close when tapping a nav item on mobile
+  sidebar.addEventListener('click', function(e){
+    const a = e.target.closest('a.nav-item');
+    if (a && window.innerWidth < 768) closeSidebar();
+  });
+
+  // Keep state sane on resize back to desktop
+  window.addEventListener('resize', function(){
+    if (window.innerWidth >= 768){
+      overlay.classList.add('hidden');
+      document.documentElement.style.overflow = '';
+      sidebar.classList.remove('hidden');
+      sidebar.classList.add('flex');
+    } else {
+      // On mobile default hidden (until opened)
+      sidebar.classList.add('hidden');
+      sidebar.classList.remove('flex');
+    }
+  }, { passive: true });
+})();
+
+</script>
+</body>
+</html>
